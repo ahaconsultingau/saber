@@ -1,9 +1,7 @@
 import 'package:cupertino_ui/cupertino_ui.dart';
 import 'package:flex_color_picker/flex_color_picker.dart';
-import 'package:font_awesome_flutter/font_awesome_flutter.dart';
 import 'package:material_ui/material_ui.dart';
 import 'package:saber/components/theming/adaptive_alert_dialog.dart';
-import 'package:saber/components/toolbar/color_option.dart';
 import 'package:saber/data/extensions/color_extensions.dart';
 import 'package:saber/data/prefs.dart';
 import 'package:saber/i18n/strings.g.dart';
@@ -17,12 +15,34 @@ class ColorBar extends StatefulWidget {
     required this.setColor,
     required this.currentColor,
     required this.invert,
+    this.isHighlighter = false,
   });
 
   final Axis axis;
   final ValueChanged<Color> setColor;
   final Color? currentColor;
   final bool invert;
+
+  /// Aha! copy: shows the highlighter's six colours instead of the pens'.
+  final bool isHighlighter;
+
+  /// Aha! copy: the six colours shown for pens (or the highlighter).
+  static List<Color> slotsFor({required bool highlighter}) => [
+    for (final s
+        in (highlighter ? stows.highlighterColourSlots : stows.penColourSlots)
+            .value)
+      Color(int.parse(s)),
+  ];
+
+  /// Aha! copy: replaces colour [index] of the pens' (or highlighter's) six.
+  static void setSlot(int index, Color color, {required bool highlighter}) {
+    final stow = highlighter
+        ? stows.highlighterColourSlots
+        : stows.penColourSlots;
+    final slots = List.of(stow.value);
+    slots[index] = color.withAlpha(255).toARGB32().toString();
+    stow.value = slots;
+  }
 
   static List<NamedColor> get colorPresets =>
       stows.preferGreyscale.value ? greyScaleColorOptions : normalColorOptions;
@@ -89,7 +109,7 @@ class ColorBar extends StatefulWidget {
   ];
   static String findColorName(Color searchColor) {
     for (final namedColor in _allColors) {
-      if (namedColor.color == searchColor) {
+      if (namedColor.color.toARGB32() == searchColor.toARGB32()) {
         return namedColor.name;
       }
     }
@@ -166,158 +186,93 @@ class ColorBar extends StatefulWidget {
 class _ColorBarState extends State<ColorBar> {
   static var pickedColor = const Color.fromRGBO(255, 0, 0, 1);
 
+  /// Aha! copy: six colours only, kept small. Tap one to use it; tap the one
+  /// in use again (or press and hold any) to change it with the colour
+  /// picker. The change is remembered.
   @override
   Widget build(BuildContext context) {
     final colorScheme = ColorScheme.of(context);
+    final slots = ColorBar.slotsFor(highlighter: widget.isHighlighter);
+    final current = widget.currentColor?.withAlpha(255).toARGB32();
 
     final children = <Widget>[
-      // pinned colors
-      if (stows.pinnedColors.value.isNotEmpty) ...[
-        const ColorOptionSeparatorIcon(icon: Icons.pin_drop),
-        for (final colorString in stows.pinnedColors.value)
-          ColorOption(
-            isSelected:
-                widget.currentColor?.withAlpha(255).toARGB32() ==
-                int.parse(colorString),
+      for (final (index, colour) in slots.indexed)
+        Padding(
+          padding: widget.axis == Axis.vertical
+              ? const .symmetric(vertical: 3)
+              : const .symmetric(horizontal: 3),
+          child: _Swatch(
+            key: ValueKey('colourSlot$index'),
+            colour: colour.withInversion(widget.invert),
+            selected: current == colour.toARGB32(),
             enabled: widget.currentColor != null,
-            onTap: () => widget.setColor(Color(int.parse(colorString))),
-            onLongPress: () =>
-                setState(() => ColorBar.toggleColorPinned(colorString)),
-            tooltip: ColorBar.findColorName(Color(int.parse(colorString))),
-            child: DecoratedBox(
-              decoration: BoxDecoration(
-                color: Color(int.parse(colorString))
-                    .withInversion(widget.invert),
-                shape: .circle,
-                border: Border.all(
-                  color: colorScheme.onSurface.withValues(alpha: 0.2),
-                  width: 1,
-                ),
-              ),
-            ),
-          ),
-      ],
-
-      const ColorOptionSeparatorIcon(icon: Icons.history),
-
-      // recent colors
-      for (final colorString in stows.recentColorsPositioned.value.reversed)
-        ColorOption(
-          isSelected:
-              widget.currentColor?.withAlpha(255).toARGB32() ==
-              int.parse(colorString),
-          enabled: widget.currentColor != null,
-          onTap: () => widget.setColor(Color(int.parse(colorString))),
-          onLongPress: () =>
-              setState(() => ColorBar.toggleColorPinned(colorString)),
-          tooltip: ColorBar.findColorName(Color(int.parse(colorString))),
-          child: DecoratedBox(
-            decoration: BoxDecoration(
-              color: Color(int.parse(colorString)).withInversion(widget.invert),
-              shape: .circle,
-              border: Border.all(
-                color: colorScheme.onSurface.withValues(alpha: 0.2),
-                width: 1,
-              ),
-            ),
-          ),
-        ),
-      // placeholders for `recentColorsLength` recent colors
-      for (
-        int i = 0;
-        i <
-            stows.recentColorsLength.value -
-                stows.recentColorsPositioned.value.length;
-        ++i
-      )
-        ColorOption(
-          isSelected: false,
-          enabled: widget.currentColor != null,
-          onTap: null,
-          tooltip: null,
-          child: DecoratedBox(
-            decoration: BoxDecoration(
-              color: Colors.transparent,
-              shape: .circle,
-              border: Border.all(
-                color: colorScheme.onSurface.withValues(alpha: 0.2),
-                width: 1,
-              ),
-            ),
-          ),
-        ),
-
-      const ColorOptionSeparatorIcon(icon: Icons.palette),
-
-      // custom color
-      ColorOption(
-        isSelected:
-            widget.currentColor?.withAlpha(255).toARGB32() ==
-            pickedColor.toARGB32(),
-        enabled: true,
-        onTap: () => openColorPicker(context),
-        tooltip: t.editor.colors.colorPicker,
-        child: const DecoratedBox(
-          decoration: BoxDecoration(color: Colors.transparent, shape: .circle),
-          child: Center(child: FaIcon(FontAwesomeIcons.droplet, size: 16)),
-        ),
-      ),
-
-      // color presets
-      for (final namedColor in ColorBar.colorPresets)
-        ColorOption(
-          isSelected:
-              widget.currentColor?.withAlpha(255).toARGB32() ==
-              namedColor.color.toARGB32(),
-          enabled: widget.currentColor != null,
-          onTap: () => widget.setColor(namedColor.color),
-          tooltip: namedColor.name,
-          child: DecoratedBox(
-            decoration: BoxDecoration(
-              color: namedColor.color.withInversion(widget.invert),
-              shape: .circle,
-              border: Border.all(
-                color: colorScheme.onSurface.withValues(alpha: 0.2),
-                width: 1,
-              ),
-            ),
+            tooltip: ColorBar.findColorName(colour),
+            outline: colorScheme.onSurface,
+            onTap: () => current == colour.toARGB32()
+                ? _editSlot(index, colour)
+                : widget.setColor(colour),
+            onLongPress: () => _editSlot(index, colour),
           ),
         ),
     ];
 
     return Center(
       child: Padding(
-        padding: const .all(8),
+        padding: const .all(6),
         child: SingleChildScrollView(
           scrollDirection: widget.axis,
-          child: Flex(direction: widget.axis, children: children),
+          child: Flex(
+            direction: widget.axis,
+            mainAxisSize: .min,
+            children: children,
+          ),
         ),
       ),
     );
   }
 
-  void openColorPicker(BuildContext context) async {
-    final bool? confirmChange = await showDialog(
+  /// Opens the colour picker on colour [index]; saving keeps the new colour
+  /// in that spot and uses it.
+  Future<void> _editSlot(int index, Color colour) async {
+    pickedColor = colour;
+    final confirmChange = await showDialog<bool>(
       context: context,
-      builder: (BuildContext context) => _colorPickerDialog(context),
+      builder: _colorPickerDialog,
     );
-    if (confirmChange ?? false) {
-      widget.setColor(pickedColor.withInversion(widget.invert));
-    }
+    if (!(confirmChange ?? false)) return;
+    final chosen = pickedColor.withAlpha(255);
+    ColorBar.setSlot(index, chosen, highlighter: widget.isHighlighter);
+    if (mounted) setState(() {});
+    widget.setColor(chosen);
   }
 
   Widget _colorPickerDialog(BuildContext context) => AdaptiveAlertDialog(
     title: Text(t.settings.accentColorPicker.pickAColor),
     content: SingleChildScrollView(
       child: ColorPicker(
+        key: const ValueKey('colourSlotPicker'),
         color: pickedColor,
-        pickersEnabled: const {ColorPickerType.wheel: true},
+        // Aha! copy: the wheel only (the package also turns on its Material
+        // swatch tabs unless told not to), so any colour can be made and its
+        // code typed in.
+        pickersEnabled: const {
+          ColorPickerType.primary: false,
+          ColorPickerType.accent: false,
+          ColorPickerType.wheel: true,
+        },
+        // Aha! copy: the colour's code can be typed in too.
+        showColorCode: true,
+        colorCodeHasColor: true,
         onColorChanged: (Color color) {
           pickedColor = color;
         },
       ),
     ),
     actions: [
+      CupertinoDialogAction(
+        child: Text(MaterialLocalizations.of(context).cancelButtonLabel),
+        onPressed: () => Navigator.of(context).pop(false),
+      ),
       CupertinoDialogAction(
         child: Text(MaterialLocalizations.of(context).saveButtonLabel),
         onPressed: () {
@@ -326,4 +281,64 @@ class _ColorBarState extends State<ColorBar> {
       ),
     ],
   );
+}
+
+/// Aha! copy: one round colour on the colour bar, with a ring when in use.
+class _Swatch extends StatelessWidget {
+  const new({
+    super.key,
+    required this.colour,
+    required this.selected,
+    required this.enabled,
+    required this.tooltip,
+    required this.outline,
+    required this.onTap,
+    required this.onLongPress,
+  });
+
+  final Color colour;
+  final bool selected;
+  final bool enabled;
+  final String tooltip;
+  final Color outline;
+  final VoidCallback onTap;
+  final VoidCallback onLongPress;
+
+  static const diameter = 32.0;
+
+  @override
+  Widget build(BuildContext context) {
+    return Tooltip(
+      message: tooltip,
+      child: InkWell(
+        customBorder: const CircleBorder(),
+        onTap: enabled ? onTap : null,
+        onLongPress: enabled ? onLongPress : null,
+        onSecondaryTap: enabled ? onLongPress : null,
+        child: Container(
+          width: diameter,
+          height: diameter,
+          padding: const .all(3),
+          decoration: BoxDecoration(
+            shape: .circle,
+            border: Border.all(
+              color: selected ? outline : Colors.transparent,
+              width: 2,
+            ),
+          ),
+          child: AnimatedOpacity(
+            opacity: enabled ? 1 : 0.5,
+            duration: const Duration(milliseconds: 200),
+            child: DecoratedBox(
+              decoration: BoxDecoration(
+                color: colour,
+                shape: .circle,
+                border: Border.all(color: outline.withValues(alpha: 0.2)),
+              ),
+            ),
+          ),
+        ),
+      ),
+    );
+  }
 }

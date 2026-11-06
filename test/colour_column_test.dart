@@ -39,17 +39,20 @@ void main() {
     expect(column, findsOneWidget);
     final rect = tester.getRect(column);
     expect(rect.right, greaterThan(760), reason: 'on the right edge');
-    expect(rect.width, lessThanOrEqualTo(64), reason: 'a slim column');
+    expect(rect.width, lessThanOrEqualTo(48), reason: 'a slim column');
     expect(rect.height, greaterThan(rect.width), reason: 'vertical');
 
     // Pick a preset: the pen takes it and the column closes.
-    final preset = ColorBar.colorPresets[3];
+    final preset = ColorBar.slotsFor(highlighter: false)[3];
     await tester.tap(
-      find.descendant(of: column, matching: find.byTooltip(preset.name)),
+      find.descendant(
+        of: column,
+        matching: find.byTooltip(ColorBar.findColorName(preset)),
+      ),
     );
     await tester.pumpAndSettle();
     expect(column, findsNothing);
-    expect(Pen.currentPen.color.withAlpha(255), preset.color.withAlpha(255));
+    expect(Pen.currentPen.color.withAlpha(255), preset);
   });
 
   testWidgets('Tapping elsewhere closes the colours', (tester) async {

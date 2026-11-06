@@ -100,12 +100,15 @@ void main() {
     final rect = tester.getRect(column);
     expect(rect.width, greaterThan(rect.height));
     expect(rect.top, lessThan(200));
-    final preset = ColorBar.colorPresets[1];
+    final preset = ColorBar.slotsFor(highlighter: false)[1];
     await tester.tap(
-      find.descendant(of: column, matching: find.byTooltip(preset.name)),
+      find.descendant(
+        of: column,
+        matching: find.byTooltip(ColorBar.findColorName(preset)),
+      ),
     );
     await tester.pumpAndSettle();
     expect(column, findsNothing);
-    expect(Pen.currentPen.color.withAlpha(255), preset.color.withAlpha(255));
+    expect(Pen.currentPen.color.withAlpha(255), preset);
   });
 }

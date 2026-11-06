@@ -294,6 +294,7 @@ class _ToolbarState extends State<Toolbar> {
             },
             currentColor: currentColor,
             invert: invert,
+            isHighlighter: widget.currentTool is Highlighter,
           ),
         ),
         child: const SizedBox.shrink(),
@@ -641,7 +642,7 @@ class _ColourColumn extends StatefulWidget {
   final Widget Function(Axis axis) colourBar;
 
   /// Thickness of the bar.
-  static const thickness = 60.0;
+  static const thickness = 48.0;
 
   /// The edge of a [size] screen nearest to [point].
   static AxisDirection nearestEdge(Offset point, Size size) {
@@ -682,9 +683,10 @@ class _ColourColumnState extends State<_ColourColumn> {
         onPanEnd: (_) => _drop(),
         onPanCancel: _drop,
         child: SizedBox.square(
-          dimension: 36,
+          dimension: 32,
           child: Icon(
             Icons.drag_indicator,
+            size: 20,
             color: ColorScheme.of(context).onSurfaceVariant,
           ),
         ),
@@ -701,7 +703,7 @@ class _ColourColumnState extends State<_ColourColumn> {
     return Material(
       key: const ValueKey('colourColumn'),
       elevation: 6,
-      borderRadius: BorderRadius.circular(28),
+      borderRadius: BorderRadius.circular(24),
       color: ColorScheme.of(context).surfaceContainerHigh,
       // As long as its colours need (scrolls if the screen is short).
       child: axis == Axis.vertical

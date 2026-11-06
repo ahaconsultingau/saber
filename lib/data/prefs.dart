@@ -237,6 +237,37 @@ class Stows {
     volatile: !_isOnMainIsolate,
   );
 
+  /// Aha! copy: the six colours on the colour bar for pens and pencils,
+  /// as ARGB numbers. Each can be changed with the colour picker.
+  final penColourSlots = PlainStow(
+    'penColourSlots',
+    defaultPenColourSlots,
+    volatile: !_isOnMainIsolate,
+  );
+  static const defaultPenColourSlots = <String>[
+    '4278190080', // black
+    '4280391411', // blue
+    '4294940672', // orange
+    '4283215696', // green
+    '4294198070', // red
+    '4288585374', // grey
+  ];
+
+  /// Aha! copy: the six colours on the colour bar for the highlighter.
+  final highlighterColourSlots = PlainStow(
+    'highlighterColourSlots',
+    defaultHighlighterColourSlots,
+    volatile: !_isOnMainIsolate,
+  );
+  static const defaultHighlighterColourSlots = <String>[
+    '4294961979', // yellow
+    '4283215696', // green
+    '4293467747', // pink
+    '4280391411', // blue
+    '4294940672', // orange
+    '4288423856', // purple
+  ];
+
   final recentColorsChronological = PlainStow(
     'recentColorsChronological',
     <String>[],
