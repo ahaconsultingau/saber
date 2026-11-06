@@ -68,6 +68,7 @@ void main() {
     stows.penGuard.value = true;
     stows.penGuardHoldMs.value = 1000;
     stows.twoFingerScrollOnly.value = true;
+    stows.lastSingleFingerPanLock.value = false;
   });
 
   testWidgets('One finger or a sleeve does not move the page', (tester) async {
@@ -206,5 +207,40 @@ void main() {
     final moved =
         (transform(tester).getTranslation() - before.getTranslation()).length;
     expect(moved, greaterThan(400), reason: 'scrolled the whole way');
+  });
+
+  testWidgets('Two fingers scroll even with the page lock button on', (
+    tester,
+  ) async {
+    // Reported: "it locks, and a slight pinch unlocks it". Saber's
+    // single-finger pan lock (a button at the top left of the page) stopped
+    // all panning, so only a pinch moved the page.
+    stows.lastSingleFingerPanLock.value = true;
+    await openEditor(tester, 'panLockOn');
+    final zoomBefore = zoomOf(tester);
+    final before = transform(tester);
+    await drag(tester, fingers: 1);
+    // Scroll one way, then the other (the page may already be at an end).
+    await twoFingerMove(tester, step: const Offset(0, -20));
+    final afterUp = transform(tester);
+    await twoFingerMove(tester, step: const Offset(0, 20));
+    final afterDown = transform(tester);
+    expect(
+      afterUp != before || afterDown != afterUp,
+      isTrue,
+      reason: 'two fingers scroll',
+    );
+    expect(zoomOf(tester), closeTo(zoomBefore, 0.001), reason: 'no zoom');
+  });
+
+  testWidgets('The page lock button is hidden with two-finger scrolling', (
+    tester,
+  ) async {
+    await openEditor(tester, 'panLockHidden');
+    await twoFingerMove(tester, step: const Offset(0, -20));
+    // The HUD shows for a few seconds after the page moves.
+    await twoFingerMove(tester, step: const Offset(0, 10), steps: 2);
+    expect(find.byIcon(Icons.swipe_up), findsNothing);
+    expect(find.byIcon(Icons.pinch), findsNothing);
   });
 }

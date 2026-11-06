@@ -539,8 +539,13 @@ class CanvasGestureDetectorState extends State<CanvasGestureDetector> {
                 return InteractiveCanvasViewer.builder(
                   minScale: zoomLockedValue ?? CanvasGestureDetector.kMinScale,
                   maxScale: zoomLockedValue ?? CanvasGestureDetector.kMaxScale,
-                  panEnabled: !singleFingerPanLock,
-                  twoFingerPanOnly: stows.twoFingerScrollOnly.value,
+                  // Aha! copy: the "single-finger pan" lock used to stop all
+                  // panning, so two-finger scrolling froze until a pinch
+                  // turned it into a zoom. Now it only stops one-finger
+                  // panning, the same as two-finger scrolling does.
+                  panEnabled: true,
+                  twoFingerPanOnly:
+                      stows.twoFingerScrollOnly.value || singleFingerPanLock,
                   shouldIgnoreTouch: _shouldIgnoreTouch,
                   panAxis: axisAlignedPanLock ? PanAxis.aligned : PanAxis.free,
 
@@ -606,6 +611,10 @@ class CanvasGestureDetectorState extends State<CanvasGestureDetector> {
             }),
             resetZoom: zoomLockedValue != null ? null : resetZoom,
             singleFingerPanLock: singleFingerPanLock,
+            // Aha! copy: with two-finger scrolling on, the lock changes
+            // nothing, so its button is hidden (it was easy to tap by
+            // accident while writing near the top of the page).
+            showSingleFingerPanLock: !stows.twoFingerScrollOnly.value,
             setSingleFingerPanLock: (bool singleFingerPanLock) => setState(() {
               this.singleFingerPanLock = singleFingerPanLock;
               stows.lastSingleFingerPanLock.value = singleFingerPanLock;
