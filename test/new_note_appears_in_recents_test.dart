@@ -186,4 +186,57 @@ void main() {
       isTrue,
     );
   });
+
+  testWidgets('Quick note opens a blank note straight away, no questions', (
+    tester,
+  ) async {
+    FlavorConfig.setup();
+    setupMockPathProvider();
+    setupMockWindowManager();
+    stows.sentryConsent.value = .granted;
+    stows.layoutSize.value = .tablet;
+    FileManager.documentsDirectory =
+        '$tmpDir/quickNote/${FileManager.appRootDirectoryPrefix}';
+    final docs = Directory(FileManager.documentsDirectory);
+    if (docs.existsSync()) docs.deleteSync(recursive: true);
+    docs.createSync(recursive: true);
+    tester.view.physicalSize = const Size(1600, 2560);
+    tester.view.devicePixelRatio = 2;
+    addTearDown(tester.view.reset);
+
+    final router = GoRouter(
+      initialLocation: App.initialLocation,
+      routes: [
+        GoRoute(
+          path: RoutePaths.home,
+          builder: (context, state) => HomePage(
+            subpage: state.pathParameters['subpage'] ?? HomePage.recentSubpage,
+            path: state.uri.queryParameters['path'],
+          ),
+        ),
+        GoRoute(
+          path: RoutePaths.edit,
+          builder: (context, state) =>
+              Editor(path: state.uri.queryParameters['path']),
+        ),
+      ],
+    );
+    addTearDown(router.dispose);
+    await tester.pumpWidget(MaterialApp.router(routerConfig: router));
+    await tester.pumpAndSettle();
+
+    await tester.tap(find.text(t.home.create.quickNote));
+    for (var j = 0; j < 5; j++) {
+      await tester.runAsync(
+        () => Future.delayed(const Duration(milliseconds: 100)),
+      );
+      await tester.pump(const Duration(milliseconds: 100));
+    }
+    await tester.pumpAndSettle();
+    expect(find.text(t.home.newNote.title), findsNothing, reason: 'no sheet');
+    final editor = tester.state<EditorState>(find.byType(Editor));
+    addTearDown(editor.cancelAutosaveAndMarkSaved);
+    expect(editor.coreInfo.filePath, startsWith('/'));
+    expect(editor.coreInfo.filePath, contains(t.editor.untitled));
+  });
 }

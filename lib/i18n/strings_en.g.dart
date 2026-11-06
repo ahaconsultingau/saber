@@ -444,6 +444,12 @@ class Translations$home$create$en {
 
 	/// en: 'Import note'
 	String get importNote => 'Import note';
+
+	/// en: 'Quick note'
+	String get quickNote => 'Quick note';
+
+	/// en: 'Start a note straight away (name it later)'
+	String get quickNoteTooltip => 'Start a note straight away (name it later)';
 }
 
 // Path: home.newFolder
@@ -1152,6 +1158,9 @@ class Translations$editor$toolbar$en {
 
 	/// en: 'Toggle colors (Ctrl C)'
 	String get toggleColors => 'Toggle colors (Ctrl C)';
+
+	/// en: 'Drag to move the colours to any edge'
+	String get moveColours => 'Drag to move the colours to any edge';
 
 	/// en: 'Select'
 	String get select => 'Select';

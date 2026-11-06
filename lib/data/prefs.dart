@@ -228,6 +228,15 @@ class Stows {
     volatile: !_isOnMainIsolate,
   );
 
+  /// Aha! copy: which edge of the screen the colour bar sits on.
+  /// Starts on the right; moves wherever it was last dragged.
+  final colourBarEdge = PlainStow(
+    'colourBarEdge',
+    AxisDirection.right,
+    codec: const EnumCodec(AxisDirection.values),
+    volatile: !_isOnMainIsolate,
+  );
+
   final recentColorsChronological = PlainStow(
     'recentColorsChronological',
     <String>[],

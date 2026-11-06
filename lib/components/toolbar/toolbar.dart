@@ -1,4 +1,5 @@
 import 'dart:io';
+import 'dart:math';
 
 import 'package:collapsible/collapsible.dart';
 import 'package:cupertino_ui/cupertino_ui.dart';
@@ -98,6 +99,14 @@ class _ToolbarState extends State<Toolbar> {
   ValueNotifier<bool> showExportOptions = ValueNotifier(false);
   ValueNotifier<bool> showColorOptions = ValueNotifier(false);
   final _colourPortal = OverlayPortalController();
+
+  /// Where this toolbar is in the overlay the colour bar floats in.
+  Rect? _toolbarRect() {
+    final box = context.findRenderObject();
+    final overlay = Overlay.maybeOf(context)?.context.findRenderObject();
+    if (box is! RenderBox || !box.hasSize) return null;
+    return box.localToGlobal(Offset.zero, ancestor: overlay) & box.size;
+  }
 
   void _syncColourPortal() {
     if (showColorOptions.value) {
@@ -269,15 +278,16 @@ class _ToolbarState extends State<Toolbar> {
           );
         },
       ),
-      // Aha! copy: the colours open as a slim column floating on the right
-      // edge of the screen (not a row across the top) and close once a
+      // Aha! copy: the colours open as a slim bar floating on an edge of
+      // the screen (the right unless dragged elsewhere) and close once a
       // colour is picked or you tap elsewhere.
       OverlayPortal(
         controller: _colourPortal,
-        overlayChildBuilder: (context) => _ColourColumn(
+        overlayChildBuilder: (_) => _ColourColumn(
           onDismiss: () => showColorOptions.value = false,
-          child: ColorBar(
-            axis: Axis.vertical,
+          toolbarRect: _toolbarRect(),
+          colourBar: (axis) => ColorBar(
+            axis: axis,
             setColor: (color) {
               widget.setColor(color);
               showColorOptions.value = false;
@@ -611,40 +621,203 @@ class _ToolbarState extends State<Toolbar> {
 
 enum ToolOptions { hide, pen, highlighter, pencil, select }
 
-/// Aha! copy: the floating colour column on the right, with a clear layer
-/// behind it that closes it when you tap elsewhere.
-class _ColourColumn extends StatelessWidget {
-  const new({required this.onDismiss, required this.child});
+/// Aha! copy: the floating colour bar. It opens on the right edge (or the
+/// edge it was last dragged to), upright on the left and right, across at
+/// the top and bottom. Drag its handle and it follows the finger, then snaps
+/// to the nearest edge when let go. A clear layer behind it closes it when
+/// you tap elsewhere.
+class _ColourColumn extends StatefulWidget {
+  const new({
+    required this.onDismiss,
+    required this.toolbarRect,
+    required this.colourBar,
+  });
 
   final VoidCallback onDismiss;
-  final Widget child;
+
+  /// Where the editor's toolbar is on screen, so the bar doesn't cover it.
+  final Rect? toolbarRect;
+
+  final Widget Function(Axis axis) colourBar;
+
+  /// Thickness of the bar.
+  static const thickness = 60.0;
+
+  /// The edge of a [size] screen nearest to [point].
+  static AxisDirection nearestEdge(Offset point, Size size) {
+    final distances = {
+      AxisDirection.left: point.dx,
+      AxisDirection.right: size.width - point.dx,
+      AxisDirection.up: point.dy,
+      AxisDirection.down: size.height - point.dy,
+    };
+    return distances.entries.reduce((a, b) => b.value < a.value ? b : a).key;
+  }
+
+  @override
+  State<_ColourColumn> createState() => _ColourColumnState();
+}
+
+class _ColourColumnState extends State<_ColourColumn> {
+  /// Where the finger is while the bar is being dragged.
+  Offset? dragPoint;
+
+  /// Keeps the handle (and the drag in progress) alive as the bar moves
+  /// and turns while being dragged.
+  final _handleKey = GlobalKey(debugLabel: 'colourBarHandle');
+
+  static Axis _axisFor(AxisDirection edge) =>
+      edge == AxisDirection.left || edge == AxisDirection.right
+      ? Axis.vertical
+      : Axis.horizontal;
+
+  Widget _bar(Axis axis, double maxLength) {
+    final handle = Tooltip(
+      message: t.editor.toolbar.moveColours,
+      child: GestureDetector(
+        key: _handleKey,
+        behavior: HitTestBehavior.opaque,
+        onPanStart: (d) => setState(() => dragPoint = d.globalPosition),
+        onPanUpdate: (d) => setState(() => dragPoint = d.globalPosition),
+        onPanEnd: (_) => _drop(),
+        onPanCancel: _drop,
+        child: SizedBox.square(
+          dimension: 36,
+          child: Icon(
+            Icons.drag_indicator,
+            color: ColorScheme.of(context).onSurfaceVariant,
+          ),
+        ),
+      ),
+    );
+    final content = Flex(
+      direction: axis,
+      mainAxisSize: .min,
+      children: [
+        handle,
+        Flexible(child: widget.colourBar(axis)),
+      ],
+    );
+    return Material(
+      key: const ValueKey('colourColumn'),
+      elevation: 6,
+      borderRadius: BorderRadius.circular(28),
+      color: ColorScheme.of(context).surfaceContainerHigh,
+      // As long as its colours need (scrolls if the screen is short).
+      child: axis == Axis.vertical
+          ? ConstrainedBox(
+              constraints: BoxConstraints(maxHeight: maxLength),
+              child: SizedBox(
+                width: _ColourColumn.thickness,
+                child: IntrinsicHeight(child: content),
+              ),
+            )
+          : ConstrainedBox(
+              constraints: BoxConstraints(maxWidth: maxLength),
+              child: SizedBox(
+                height: _ColourColumn.thickness,
+                child: IntrinsicWidth(child: content),
+              ),
+            ),
+    );
+  }
+
+  void _drop() {
+    final point = dragPoint;
+    if (point == null) return;
+    stows.colourBarEdge.value = _ColourColumn.nearestEdge(
+      point,
+      MediaQuery.sizeOf(context),
+    );
+    setState(() => dragPoint = null);
+  }
 
   @override
   Widget build(BuildContext context) {
     final media = MediaQuery.of(context);
+    final size = media.size;
+    const gap = 8.0;
+
+    // Keep clear of the status bar, the app bar and the toolbar.
+    var top = media.padding.top + kToolbarHeight + gap;
+    var bottom = media.padding.bottom + gap;
+    var left = media.padding.left + gap;
+    var right = media.padding.right + gap;
+    if (widget.toolbarRect case final toolbar?) {
+      if (toolbar.width >= toolbar.height) {
+        if (toolbar.center.dy > size.height / 2) {
+          bottom = max(bottom, size.height - toolbar.top + gap);
+        } else {
+          top = max(top, toolbar.bottom + gap);
+        }
+      } else if (toolbar.center.dx > size.width / 2) {
+        right = max(right, size.width - toolbar.left + gap);
+      } else {
+        left = max(left, toolbar.right + gap);
+      }
+    }
+
+    final Widget placed;
+    if (dragPoint case final point?) {
+      // Follows the finger, shaped for the edge it would snap to.
+      final axis = _axisFor(_ColourColumn.nearestEdge(point, size));
+      const half = _ColourColumn.thickness / 2;
+      placed = Positioned(
+        left: point.dx - half,
+        top: point.dy - half,
+        child: _bar(
+          axis,
+          axis == Axis.vertical ? size.height - 2 * gap : size.width - 2 * gap,
+        ),
+      );
+    } else {
+      final edge = stows.colourBarEdge.value;
+      final axis = _axisFor(edge);
+      final bar = Center(
+        child: _bar(
+          axis,
+          axis == Axis.vertical
+              ? size.height - top - bottom
+              : size.width - left - right,
+        ),
+      );
+      placed = switch (edge) {
+        AxisDirection.right => Positioned(
+          right: right,
+          top: top,
+          bottom: bottom,
+          child: bar,
+        ),
+        AxisDirection.left => Positioned(
+          left: left,
+          top: top,
+          bottom: bottom,
+          child: bar,
+        ),
+        AxisDirection.up => Positioned(
+          top: top,
+          left: left,
+          right: right,
+          child: bar,
+        ),
+        AxisDirection.down => Positioned(
+          bottom: bottom,
+          left: left,
+          right: right,
+          child: bar,
+        ),
+      };
+    }
+
     return Stack(
       children: [
         Positioned.fill(
           child: GestureDetector(
             behavior: HitTestBehavior.opaque,
-            onTap: onDismiss,
+            onTap: widget.onDismiss,
           ),
         ),
-        PositionedDirectional(
-          end: 8,
-          top: media.padding.top + kToolbarHeight + 8,
-          bottom: media.padding.bottom + 16,
-          child: Center(
-            child: Material(
-              key: const ValueKey('colourColumn'),
-              elevation: 6,
-              borderRadius: BorderRadius.circular(28),
-              color: ColorScheme.of(context).surfaceContainerHigh,
-              // As tall as its colours need (scrolls if the screen is short).
-              child: SizedBox(width: 60, child: IntrinsicHeight(child: child)),
-            ),
-          ),
-        ),
+        placed,
       ],
     );
   }

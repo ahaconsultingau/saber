@@ -2,6 +2,7 @@ import 'package:file_picker/file_picker.dart';
 import 'package:go_router/go_router.dart';
 import 'package:material_ui/material_ui.dart';
 import 'package:saber/components/home/new_note_dialog.dart';
+import 'package:saber/data/editor/editor_core_info.dart';
 import 'package:saber/data/file_manager/file_manager.dart';
 import 'package:saber/data/routes.dart';
 import 'package:saber/i18n/strings.g.dart';
@@ -24,14 +25,30 @@ class NewNoteButton extends StatefulWidget {
     context.push(RoutePaths.editFilePath(newFilePath));
   }
 
+  /// Aha! copy: opens a new note straight away, with no questions: Saber's
+  /// dated name, the default page design, in [folder]. Rename it later with
+  /// the pencil beside its name.
+  static Future<void> createQuickNote(
+    BuildContext context, {
+    String? folder,
+  }) async {
+    EditorCoreInfo.nextNewNotePattern = null;
+    final path = await NewNoteDialog.pathFor(
+      folder == null || folder.isEmpty ? '/' : folder,
+      '',
+    );
+    if (!context.mounted) return;
+    context.push(RoutePaths.editFilePath(path));
+  }
+
   @override
   State<NewNoteButton> createState() => _NewNoteButtonState();
 }
 
 class _NewNoteButtonState extends State<NewNoteButton> {
   /// Aha! copy: one solid "+ New note" button that opens the New note sheet
-  /// straight away (it was a pale, see-through + with a menu), with a small
-  /// Import button beside it.
+  /// straight away (it was a pale, see-through + with a menu), a Quick note
+  /// button that skips the sheet, and a small Import button.
   @override
   Widget build(BuildContext context) {
     final colorScheme = ColorScheme.of(context);
@@ -43,6 +60,20 @@ class _NewNoteButtonState extends State<NewNoteButton> {
           tooltip: t.home.create.importNote,
           onPressed: _import,
           icon: const Icon(Icons.file_upload_outlined),
+        ),
+        // Aha! copy: skip the New note sheet altogether. Just the icon on
+        // narrow (phone) screens, where the words don't fit.
+        FloatingActionButton.extended(
+          key: const ValueKey('quickNote'),
+          heroTag: null,
+          tooltip: t.home.create.quickNoteTooltip,
+          backgroundColor: colorScheme.secondaryContainer,
+          foregroundColor: colorScheme.onSecondaryContainer,
+          onPressed: () =>
+              NewNoteButton.createQuickNote(context, folder: widget.path),
+          isExtended: MediaQuery.sizeOf(context).width >= 600,
+          icon: const Icon(Icons.bolt),
+          label: Text(t.home.create.quickNote),
         ),
         FloatingActionButton.extended(
           heroTag: null,
