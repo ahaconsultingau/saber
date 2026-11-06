@@ -97,11 +97,22 @@ class Toolbar extends StatefulWidget {
 class _ToolbarState extends State<Toolbar> {
   ValueNotifier<bool> showExportOptions = ValueNotifier(false);
   ValueNotifier<bool> showColorOptions = ValueNotifier(false);
+  final _colourPortal = OverlayPortalController();
+
+  void _syncColourPortal() {
+    if (showColorOptions.value) {
+      _colourPortal.show();
+    } else {
+      _colourPortal.hide();
+    }
+  }
+
   ValueNotifier<ToolOptions> toolOptionsType = ValueNotifier(ToolOptions.hide);
 
   @override
   void initState() {
     _assignKeybindings();
+    showColorOptions.addListener(_syncColourPortal);
 
     DynamicMaterialApp.addFullscreenListener(_setState);
 
@@ -258,24 +269,24 @@ class _ToolbarState extends State<Toolbar> {
           );
         },
       ),
-      ValueListenableBuilder(
-        valueListenable: showColorOptions,
-        builder: (context, showColorOptions, child) {
-          return Collapsible(
-            axis: isToolbarVertical
-                ? CollapsibleAxis.horizontal
-                : CollapsibleAxis.vertical,
-            maintainState: true,
-            collapsed: !showColorOptions,
-            child: child!,
-          );
-        },
-        child: ColorBar(
-          axis: isToolbarVertical ? Axis.vertical : Axis.horizontal,
-          setColor: widget.setColor,
-          currentColor: currentColor,
-          invert: invert,
+      // Aha! copy: the colours open as a slim column floating on the right
+      // edge of the screen (not a row across the top) and close once a
+      // colour is picked or you tap elsewhere.
+      OverlayPortal(
+        controller: _colourPortal,
+        overlayChildBuilder: (context) => _ColourColumn(
+          onDismiss: () => showColorOptions.value = false,
+          child: ColorBar(
+            axis: Axis.vertical,
+            setColor: (color) {
+              widget.setColor(color);
+              showColorOptions.value = false;
+            },
+            currentColor: currentColor,
+            invert: invert,
+          ),
         ),
+        child: const SizedBox.shrink(),
       ),
       ValueListenableBuilder(
         valueListenable: widget.quillFocus,
@@ -591,6 +602,7 @@ class _ToolbarState extends State<Toolbar> {
   void dispose() {
     DynamicMaterialApp.removeFullscreenListener(_setState);
     DynamicMaterialApp.setFullscreen(false, updateSystem: true);
+    showColorOptions.removeListener(_syncColourPortal);
 
     _removeKeybindings();
     super.dispose();
@@ -598,3 +610,42 @@ class _ToolbarState extends State<Toolbar> {
 }
 
 enum ToolOptions { hide, pen, highlighter, pencil, select }
+
+/// Aha! copy: the floating colour column on the right, with a clear layer
+/// behind it that closes it when you tap elsewhere.
+class _ColourColumn extends StatelessWidget {
+  const new({required this.onDismiss, required this.child});
+
+  final VoidCallback onDismiss;
+  final Widget child;
+
+  @override
+  Widget build(BuildContext context) {
+    final media = MediaQuery.of(context);
+    return Stack(
+      children: [
+        Positioned.fill(
+          child: GestureDetector(
+            behavior: HitTestBehavior.opaque,
+            onTap: onDismiss,
+          ),
+        ),
+        PositionedDirectional(
+          end: 8,
+          top: media.padding.top + kToolbarHeight + 8,
+          bottom: media.padding.bottom + 16,
+          child: Center(
+            child: Material(
+              key: const ValueKey('colourColumn'),
+              elevation: 6,
+              borderRadius: BorderRadius.circular(28),
+              color: ColorScheme.of(context).surfaceContainerHigh,
+              // As tall as its colours need (scrolls if the screen is short).
+              child: SizedBox(width: 60, child: IntrinsicHeight(child: child)),
+            ),
+          ),
+        ),
+      ],
+    );
+  }
+}
