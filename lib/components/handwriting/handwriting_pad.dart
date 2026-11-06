@@ -1,4 +1,5 @@
 import 'dart:async';
+import 'dart:math';
 
 import 'package:logging/logging.dart';
 import 'package:material_ui/material_ui.dart';
@@ -17,6 +18,43 @@ class HandwritingPad extends StatefulWidget {
   final double height;
 
   static final log = Logger('HandwritingPad');
+
+  /// Whether [stroke] is a scratch-out: a scribble that goes back and forth
+  /// at least three times, much longer than it is wide or tall.
+  static bool isScratch(List<Offset> stroke) {
+    if (stroke.length < 8) return false;
+    final bounds = boundsOf(stroke);
+    var length = 0.0;
+    var turnsX = 0, turnsY = 0;
+    double lastDx = 0, lastDy = 0;
+    for (var i = 1; i < stroke.length; i++) {
+      final d = stroke[i] - stroke[i - 1];
+      length += d.distance;
+      if (d.dx.abs() >= 2) {
+        if (lastDx != 0 && d.dx.sign != lastDx.sign) turnsX++;
+        lastDx = d.dx;
+      }
+      if (d.dy.abs() >= 2) {
+        if (lastDy != 0 && d.dy.sign != lastDy.sign) turnsY++;
+        lastDy = d.dy;
+      }
+    }
+    final size = max(bounds.width, bounds.height);
+    return max(turnsX, turnsY) >= 3 && size > 0 && length > size * 2.5;
+  }
+
+  static Rect boundsOf(List<Offset> stroke) {
+    var rect = Rect.fromLTRB(
+      stroke.first.dx,
+      stroke.first.dy,
+      stroke.first.dx,
+      stroke.first.dy,
+    );
+    for (final p in stroke) {
+      rect = rect.expandToInclude(Rect.fromLTRB(p.dx, p.dy, p.dx, p.dy));
+    }
+    return rect;
+  }
 
   /// How long after the pen lifts the ink is read.
   static const readDelay = Duration(milliseconds: 800);
@@ -53,6 +91,26 @@ class _HandwritingPadState extends State<HandwritingPad> {
   void _up(PointerEvent e) {
     if (strokes.isEmpty) return;
     _readTimer?.cancel();
+    if (strokes.length > 1 && HandwritingPad.isScratch(strokes.last)) {
+      // A scribble over earlier ink rubs that ink out.
+      final scratch = HandwritingPad.boundsOf(strokes.last).inflate(4);
+      final kept = [
+        for (final s in strokes.take(strokes.length - 1))
+          if (!HandwritingPad.boundsOf(s).overlaps(scratch)) s,
+      ];
+      if (kept.length < strokes.length - 1) {
+        setState(() {
+          strokes
+            ..clear()
+            ..addAll(kept);
+          status = _PadStatus.idle;
+        });
+        if (strokes.isEmpty) {
+          widget.onText('');
+          return;
+        }
+      }
+    }
     _readTimer = Timer(HandwritingPad.readDelay, _read);
   }
 
@@ -123,9 +181,13 @@ class _HandwritingPadState extends State<HandwritingPad> {
                 children: [
                   if (strokes.isEmpty)
                     Center(
-                      child: Text(
-                        strings.hint,
-                        style: TextStyle(color: colorScheme.onSurfaceVariant),
+                      child: Padding(
+                        padding: const .symmetric(horizontal: 12),
+                        child: Text(
+                          strings.hint,
+                          textAlign: TextAlign.center,
+                          style: TextStyle(color: colorScheme.onSurfaceVariant),
+                        ),
                       ),
                     ),
                   Positioned.fill(

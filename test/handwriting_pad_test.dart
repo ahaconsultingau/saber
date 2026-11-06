@@ -1,9 +1,11 @@
 import 'dart:io';
+import 'dart:math';
 
 import 'package:flutter/gestures.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:material_ui/material_ui.dart';
 import 'package:saber/components/bookmarks/bookmarks_panel.dart';
+import 'package:saber/components/editor/rename_note_dialog.dart';
 import 'package:saber/components/handwriting/handwriting_pad.dart';
 import 'package:saber/components/home/new_note_dialog.dart';
 import 'package:saber/data/editor/editor_core_info.dart';
@@ -11,6 +13,7 @@ import 'package:saber/data/file_manager/file_manager.dart';
 import 'package:saber/data/flavor_config.dart';
 import 'package:saber/data/handwriting/handwriting_recognizer.dart';
 import 'package:saber/i18n/strings.g.dart';
+import 'package:saber/pages/editor/editor.dart';
 
 import 'utils/test_mock_channel_handlers.dart';
 
@@ -178,5 +181,93 @@ void main() {
     await writeInPad(tester);
     expect(find.text(t.editor.handwritingPad.noText), findsOneWidget);
     expect(nameIn(tester, 'newNoteName'), '');
+  });
+
+  /// A back-and-forth scribble across [centre].
+  Future<void> scratchOver(WidgetTester tester, Offset centre) async {
+    final pen = await tester.startGesture(
+      centre - const Offset(70, 0),
+      kind: PointerDeviceKind.stylus,
+    );
+    for (var i = 0; i < 6; i++) {
+      for (var j = 0; j < 7; j++) {
+        await pen.moveBy(Offset(i.isEven ? 20 : -20, 0.5));
+      }
+      await tester.pump(const Duration(milliseconds: 16));
+    }
+    await pen.up();
+    await tester.pump(
+      HandwritingPad.readDelay + const Duration(milliseconds: 50),
+    );
+    await tester.pumpAndSettle();
+  }
+
+  testWidgets('Scribbling over the ink rubs it out, and the name', (
+    tester,
+  ) async {
+    await open(tester, const NewNoteDialog(folders: ['/']), (_) {});
+    await writeInPad(tester);
+    expect(nameIn(tester, 'newNoteName'), 'Bayside Council');
+    final pad = tester.getCenter(find.byKey(const ValueKey('handwritingPad')));
+    await scratchOver(tester, pad);
+    expect(find.text(t.editor.handwritingPad.hint), findsOneWidget);
+    expect(nameIn(tester, 'newNoteName'), '');
+  });
+
+  test('What counts as a scribble', () {
+    final zigzag = [
+      for (var i = 0; i < 12; i++) Offset(i.isEven ? 0 : 80, i * 2.0),
+    ];
+    expect(HandwritingPad.isScratch(zigzag), isTrue);
+    final line = [for (var i = 0; i < 12; i++) Offset(i * 10.0, 0)];
+    expect(HandwritingPad.isScratch(line), isFalse);
+    final letterO = [
+      for (var i = 0; i <= 24; i++)
+        Offset(20 * cos(i * pi / 12), 20 * sin(i * pi / 12)),
+    ];
+    expect(HandwritingPad.isScratch(letterO), isFalse);
+  });
+
+  testWidgets('The pen on a note\'s name opens a box to write it', (
+    tester,
+  ) async {
+    tester.view.physicalSize = const Size(1600, 2560);
+    tester.view.devicePixelRatio = 2;
+    addTearDown(tester.view.reset);
+    await tester.pumpWidget(MaterialApp(home: Editor(path: '/Old name')));
+    final editor = tester.state<EditorState>(find.byType(Editor));
+    for (var i = 0; i < 10 && editor.coreInfo.isEmpty; i++) {
+      await tester.runAsync(
+        () => Future.delayed(const Duration(milliseconds: 100)),
+      );
+      await tester.pump();
+    }
+    await tester.pumpAndSettle();
+    addTearDown(editor.cancelAutosaveAndMarkSaved);
+
+    // A finger tap types as before: no box.
+    await tester.tap(find.byKey(const ValueKey('noteTitle')));
+    await tester.pumpAndSettle();
+    expect(find.byType(RenameNoteDialog), findsNothing);
+
+    // The pen opens the box; write, then Save renames the note.
+    await tester.tap(
+      find.byKey(const ValueKey('noteTitle')),
+      kind: PointerDeviceKind.stylus,
+    );
+    await tester.pumpAndSettle();
+    expect(find.byType(RenameNoteDialog), findsOneWidget);
+    await writeInPad(tester);
+    expect(nameIn(tester, 'renameNoteName'), 'Bayside Council');
+    await tester.tap(find.text(t.editor.renameNote.save));
+    for (var i = 0; i < 5; i++) {
+      await tester.runAsync(
+        () => Future.delayed(const Duration(milliseconds: 100)),
+      );
+      await tester.pump();
+    }
+    await tester.pumpAndSettle();
+    expect(find.byType(RenameNoteDialog), findsNothing);
+    expect(editor.coreInfo.fileName, 'Bayside Council');
   });
 }
