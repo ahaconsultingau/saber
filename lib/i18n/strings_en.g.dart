@@ -314,6 +314,7 @@ class Translations$editor$en {
 	late final Translations$editor$selectionBar$en selectionBar = Translations$editor$selectionBar$en.internal(_root);
 	late final Translations$editor$penGuard$en penGuard = Translations$editor$penGuard$en.internal(_root);
 	late final Translations$editor$bookmarks$en bookmarks = Translations$editor$bookmarks$en.internal(_root);
+	late final Translations$editor$handwritingPad$en handwritingPad = Translations$editor$handwritingPad$en.internal(_root);
 	late final Translations$editor$saveState$en saveState = Translations$editor$saveState$en.internal(_root);
 	late final Translations$editor$insertTable$en insertTable = Translations$editor$insertTable$en.internal(_root);
 	late final Translations$editor$convertToText$en convertToText = Translations$editor$convertToText$en.internal(_root);
@@ -365,6 +366,9 @@ class Translations$home$newNote$en {
 
 	/// en: 'Create'
 	String get create => 'Create';
+
+	/// en: 'Skip'
+	String get skip => 'Skip';
 }
 
 // Path: home.tabs
@@ -1415,6 +1419,30 @@ class Translations$editor$bookmarks$en {
 
 	/// en: 'Save'
 	String get save => 'Save';
+}
+
+// Path: editor.handwritingPad
+class Translations$editor$handwritingPad$en {
+	Translations$editor$handwritingPad$en.internal(this._root);
+
+	final Translations _root; // ignore: unused_field
+
+	// Translations
+
+	/// en: 'Or write it here with the pen'
+	String get hint => 'Or write it here with the pen';
+
+	/// en: 'Reading your handwriting…'
+	String get reading => 'Reading your handwriting…';
+
+	/// en: 'Downloading the handwriting pack (once; needs internet)…'
+	String get downloading => 'Downloading the handwriting pack (once; needs internet)…';
+
+	/// en: 'Couldn't read that. Try again, or type the name.'
+	String get failed => 'Couldn\'t read that. Try again, or type the name.';
+
+	/// en: 'Clear'
+	String get clear => 'Clear';
 }
 
 // Path: editor.saveState

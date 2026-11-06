@@ -12,6 +12,7 @@ home:
     lineStyle: Line style
     lineStyleHelp: Page colour and starting pen come from Settings › New pages
     create: Create
+    skip: Skip
   tabs:
     home: Home
     browse: Browse
@@ -375,6 +376,12 @@ editor:
     writeHeading: Also write the name and date at the top of the page
     remove: Remove
     save: Save
+  handwritingPad:
+    hint: Or write it here with the pen
+    reading: Reading your handwriting…
+    downloading: Downloading the handwriting pack (once; needs internet)…
+    failed: Couldn't read that. Try again, or type the name.
+    clear: Clear
   saveState:
     saved: Saved
     saving: Saving…

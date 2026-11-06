@@ -1,4 +1,5 @@
 import 'dart:io';
+import 'dart:ui' show Offset;
 
 import 'package:flutter/foundation.dart';
 
@@ -31,8 +32,12 @@ abstract final class HandwritingRecognizer {
 
   static final _modelManager = mlkit.DigitalInkRecognizerModelManager();
 
+  @visibleForTesting
+  static Future<String> Function(List<List<Offset>> strokes)? debugRecognizeInk;
+
   static Future<bool> isModelDownloaded() async =>
       debugRecognize != null ||
+      debugRecognizeInk != null ||
       await _modelManager.isModelDownloaded(languageTag);
 
   /// Downloads the language pack. Works on mobile data as well as Wi-Fi.
@@ -54,10 +59,23 @@ abstract final class HandwritingRecognizer {
     if (debugRecognize case final debugRecognize?) {
       return debugRecognize(handwriting);
     }
-    final lines = InkLines.build([
-      for (final stroke in handwriting) stroke.inputPoints,
-    ]);
+    return _recognizeLines(
+      InkLines.build([for (final stroke in handwriting) stroke.inputPoints]),
+    );
+  }
 
+  /// Aha! copy: recognises ink drawn outside a note (e.g. a name written in
+  /// a pen box): each stroke a list of points, in drawing order.
+  static Future<String> recognizeInk(List<List<Offset>> strokes) async {
+    if (debugRecognizeInk case final debugRecognizeInk?) {
+      return debugRecognizeInk(strokes);
+    }
+    return _recognizeLines(InkLines.build(strokes));
+  }
+
+  static Future<String> _recognizeLines(
+    List<List<List<InkPoint>>> lines,
+  ) async {
     final recognizer = mlkit.DigitalInkRecognizer(languageCode: languageTag);
     try {
       final text = <String>[];

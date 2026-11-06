@@ -1,5 +1,6 @@
 import 'package:cupertino_ui/cupertino_ui.dart';
 import 'package:material_ui/material_ui.dart';
+import 'package:saber/components/handwriting/handwriting_pad.dart';
 import 'package:saber/components/theming/adaptive_alert_dialog.dart';
 import 'package:saber/data/editor/editor_core_info.dart';
 import 'package:saber/data/file_manager/file_manager.dart';
@@ -123,6 +124,14 @@ class _NewNoteDialogState extends State<NewNoteDialog> {
               ),
               onSubmitted: (_) => _create(),
             ),
+            // Aha! copy: or write the name with the pen.
+            HandwritingPad(
+              onText: (text) => setState(() {
+                name.text = text;
+                name.selection = TextSelection.collapsed(offset: text.length);
+                error = null;
+              }),
+            ),
             DropdownButtonFormField<String>(
               key: const ValueKey('newNoteFolder'),
               initialValue: folder,
@@ -165,6 +174,14 @@ class _NewNoteDialogState extends State<NewNoteDialog> {
         CupertinoDialogAction(
           onPressed: () => Navigator.of(context).pop(),
           child: Text(t.common.cancel),
+        ),
+        // Aha! copy: skip naming; the note gets Saber's dated name.
+        CupertinoDialogAction(
+          onPressed: () {
+            name.clear();
+            _create();
+          },
+          child: Text(strings.skip),
         ),
         CupertinoDialogAction(
           isDefaultAction: true,
