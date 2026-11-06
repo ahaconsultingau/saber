@@ -73,6 +73,7 @@ class Translations$home$en {
 	final Translations _root; // ignore: unused_field
 
 	// Translations
+	late final Translations$home$newNote$en newNote = Translations$home$newNote$en.internal(_root);
 	late final Translations$home$tabs$en tabs = Translations$home$tabs$en.internal(_root);
 	late final Translations$home$titles$en titles = Translations$home$titles$en.internal(_root);
 	late final Translations$home$tooltips$en tooltips = Translations$home$tooltips$en.internal(_root);
@@ -312,6 +313,7 @@ class Translations$editor$en {
 	late final Translations$editor$imageOptions$en imageOptions = Translations$editor$imageOptions$en.internal(_root);
 	late final Translations$editor$selectionBar$en selectionBar = Translations$editor$selectionBar$en.internal(_root);
 	late final Translations$editor$penGuard$en penGuard = Translations$editor$penGuard$en.internal(_root);
+	late final Translations$editor$saveState$en saveState = Translations$editor$saveState$en.internal(_root);
 	late final Translations$editor$insertTable$en insertTable = Translations$editor$insertTable$en.internal(_root);
 	late final Translations$editor$convertToText$en convertToText = Translations$editor$convertToText$en.internal(_root);
 	late final Translations$editor$menu$en menu = Translations$editor$menu$en.internal(_root);
@@ -329,6 +331,39 @@ class Translations$editor$en {
 
 	/// en: 'Saving your changes… You can safely exit the editor when it's done'
 	String get needsToSaveBeforeExiting => 'Saving your changes… You can safely exit the editor when it\'s done';
+}
+
+// Path: home.newNote
+class Translations$home$newNote$en {
+	Translations$home$newNote$en.internal(this._root);
+
+	final Translations _root; // ignore: unused_field
+
+	// Translations
+
+	/// en: 'New note'
+	String get title => 'New note';
+
+	/// en: 'Name'
+	String get name => 'Name';
+
+	/// en: 'e.g. Bayside Council'
+	String get nameHint => 'e.g. Bayside Council';
+
+	/// en: 'Folder'
+	String get folder => 'Folder';
+
+	/// en: 'All notes (no folder)'
+	String get topFolder => 'All notes (no folder)';
+
+	/// en: 'Line style'
+	String get lineStyle => 'Line style';
+
+	/// en: 'Page colour and starting pen come from Settings › New pages'
+	String get lineStyleHelp => 'Page colour and starting pen come from Settings › New pages';
+
+	/// en: 'Create'
+	String get create => 'Create';
 }
 
 // Path: home.tabs
@@ -1328,6 +1363,27 @@ class Translations$editor$penGuard$en {
 
 	/// en: 'Pen near · touch paused'
 	String get hint => 'Pen near · touch paused';
+}
+
+// Path: editor.saveState
+class Translations$editor$saveState$en {
+	Translations$editor$saveState$en.internal(this._root);
+
+	final Translations _root; // ignore: unused_field
+
+	// Translations
+
+	/// en: 'Saved'
+	String get saved => 'Saved';
+
+	/// en: 'Saving…'
+	String get saving => 'Saving…';
+
+	/// en: 'Not saved yet'
+	String get notSaved => 'Not saved yet';
+
+	/// en: 'Tap to rename'
+	String get rename => 'Tap to rename';
 }
 
 // Path: editor.insertTable

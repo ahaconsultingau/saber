@@ -64,7 +64,19 @@ void main() {
     await tester.pumpAndSettle();
     await tester.tap(find.text(t.home.create.newNote));
     await tester.pumpAndSettle();
+    // The New note sheet asks for a name first.
+    expect(find.text(t.home.newNote.title), findsWidgets);
+    await tester.enterText(
+      find.byKey(const ValueKey('newNoteName')),
+      'Bayside Council',
+    );
+    await tester.tap(find.text(t.home.newNote.create));
+    await tester.runAsync(
+      () => Future.delayed(const Duration(milliseconds: 200)),
+    );
+    await tester.pumpAndSettle();
     final editor = tester.state<EditorState>(find.byType(Editor));
+    expect(editor.coreInfo.filePath, '/Bayside Council');
 
     // Write a stroke with the pen, through the real drawing handlers.
     await tester.runAsync(
@@ -106,5 +118,70 @@ void main() {
     }
     expect(find.byType(Editor), findsNothing);
     expect(find.byType(PreviewCard), findsOneWidget);
+    expect(find.text('Bayside Council'), findsOneWidget);
+  });
+
+  testWidgets('The back arrow saves and leaves in one tap', (tester) async {
+    FlavorConfig.setup();
+    setupMockPathProvider();
+    setupMockWindowManager();
+    stows.sentryConsent.value = .granted;
+    stows.layoutSize.value = .tablet;
+    FileManager.documentsDirectory =
+        '$tmpDir/backArrow/${FileManager.appRootDirectoryPrefix}';
+    tester.view.physicalSize = const Size(1600, 2560);
+    tester.view.devicePixelRatio = 2;
+    addTearDown(tester.view.reset);
+
+    final router = GoRouter(
+      initialLocation: App.initialLocation,
+      routes: [
+        GoRoute(
+          path: RoutePaths.home,
+          builder: (context, state) => HomePage(
+            subpage: state.pathParameters['subpage'] ?? HomePage.recentSubpage,
+            path: state.uri.queryParameters['path'],
+          ),
+        ),
+        GoRoute(
+          path: RoutePaths.edit,
+          builder: (context, state) =>
+              Editor(path: state.uri.queryParameters['path']),
+        ),
+      ],
+    );
+    addTearDown(router.dispose);
+    await tester.pumpWidget(MaterialApp.router(routerConfig: router));
+    await tester.pumpAndSettle();
+    router.push(RoutePaths.editFilePath('/Back arrow note'));
+    await tester.runAsync(
+      () => Future.delayed(const Duration(milliseconds: 200)),
+    );
+    await tester.pumpAndSettle();
+    final editor = tester.state<EditorState>(find.byType(Editor));
+    final box = editor.coreInfo.pages[0].renderBox!;
+    editor.dragPageIndex = 0;
+    editor.onDrawStart(
+      ScaleStartDetails(focalPoint: box.localToGlobal(const Offset(100, 100))),
+    );
+    editor.onDrawUpdate(
+      ScaleUpdateDetails(focalPoint: box.localToGlobal(const Offset(200, 150))),
+    );
+    editor.onDrawEnd(ScaleEndDetails());
+    await tester.pump();
+    expect(find.text(t.editor.saveState.notSaved), findsOneWidget);
+
+    await tester.tap(find.byIcon(Icons.arrow_back));
+    for (var j = 0; j < 30; j++) {
+      await tester.runAsync(
+        () => Future.delayed(const Duration(milliseconds: 100)),
+      );
+      await tester.pump(const Duration(milliseconds: 100));
+    }
+    expect(find.byType(Editor), findsNothing);
+    expect(
+      FileManager.doesFileExist('/Back arrow note${Editor.extension}'),
+      isTrue,
+    );
   });
 }

@@ -3,6 +3,15 @@ common:
   continueBtn: Continue
   cancel: Cancel
 home:
+  newNote:
+    title: New note
+    name: Name
+    nameHint: e.g. Bayside Council
+    folder: Folder
+    topFolder: All notes (no folder)
+    lineStyle: Line style
+    lineStyleHelp: Page colour and starting pen come from Settings › New pages
+    create: Create
   tabs:
     home: Home
     browse: Browse
@@ -351,6 +360,11 @@ editor:
     convertToText: Convert to text
   penGuard:
     hint: Pen near · touch paused
+  saveState:
+    saved: Saved
+    saving: Saving…
+    notSaved: Not saved yet
+    rename: Tap to rename
   insertTable:
     title: Insert table
     rows: Rows

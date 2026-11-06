@@ -2,6 +2,7 @@ import 'package:file_picker/file_picker.dart';
 import 'package:flutter_speed_dial/flutter_speed_dial.dart';
 import 'package:go_router/go_router.dart';
 import 'package:material_ui/material_ui.dart';
+import 'package:saber/components/home/new_note_dialog.dart';
 import 'package:saber/components/navbar/bottom_navbar.dart';
 import 'package:saber/components/theming/saber_theme.dart';
 import 'package:saber/data/file_manager/file_manager.dart';
@@ -64,15 +65,15 @@ class _NewNoteButtonState extends State<NewNoteButton> {
           child: const Icon(Icons.create),
           label: t.home.create.newNote,
           onTap: () async {
-            if (widget.path == null) {
-              context.push(RoutePaths.edit);
-            } else {
-              final newFilePath = await FileManager.newFilePath(
-                '${widget.path}/',
-              );
-              if (!context.mounted) return;
-              context.push(RoutePaths.editFilePath(newFilePath));
-            }
+            // Aha! copy: ask for the name, folder and line style first.
+            final newFilePath = await NewNoteDialog.show(
+              context,
+              folder: widget.path == null || widget.path!.isEmpty
+                  ? '/'
+                  : widget.path,
+            );
+            if (newFilePath == null || !context.mounted) return;
+            context.push(RoutePaths.editFilePath(newFilePath));
           },
         ),
         SpeedDialChild(

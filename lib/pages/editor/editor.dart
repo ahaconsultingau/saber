@@ -1832,8 +1832,21 @@ class EditorState extends State<Editor> {
                         key: _filenameFormKey,
                         autovalidateMode: AutovalidateMode.onUserInteraction,
                         child: TextFormField(
-                          decoration: const InputDecoration(
-                            border: InputBorder.none,
+                          // Aha! copy: looks like something you can rename.
+                          decoration: InputDecoration(
+                            isDense: true,
+                            hintText: t.editor.saveState.rename,
+                            contentPadding: const .symmetric(
+                              horizontal: 10,
+                              vertical: 8,
+                            ),
+                            border: OutlineInputBorder(
+                              borderRadius: BorderRadius.circular(10),
+                            ),
+                            suffixIcon: const Icon(Icons.edit, size: 18),
+                            suffixIconConstraints: const BoxConstraints(
+                              minWidth: 36,
+                            ),
                           ),
                           controller: filenameTextEditingController,
                           onChanged: renameFile,
@@ -1846,6 +1859,7 @@ class EditorState extends State<Editor> {
                   triggerSave: saveToFile,
                 ),
                 actions: [
+                  _SaveStateChip(savingState: savingState),
                   IconButton(
                     icon: const AdaptiveIcon(
                       icon: Icons.insert_page_break,
@@ -2276,5 +2290,70 @@ class EditorState extends State<Editor> {
     } finally {
       coreInfo.dispose();
     }
+  }
+}
+
+/// Aha! copy: "Saved", "Saving…" or "Not saved yet", beside the note's name.
+class _SaveStateChip extends StatelessWidget {
+  const new({required this.savingState});
+
+  final ValueNotifier<SavingState> savingState;
+
+  @override
+  Widget build(BuildContext context) {
+    final colorScheme = ColorScheme.of(context);
+    return ValueListenableBuilder(
+      valueListenable: savingState,
+      builder: (context, state, _) {
+        final (label, icon, fg, bg) = switch (state) {
+          .saved => (
+            t.editor.saveState.saved,
+            Icons.check,
+            colorScheme.onTertiaryContainer,
+            colorScheme.tertiaryContainer,
+          ),
+          .saving => (
+            t.editor.saveState.saving,
+            Icons.sync,
+            colorScheme.onSurfaceVariant,
+            colorScheme.surfaceContainerHighest,
+          ),
+          .waitingToSave => (
+            t.editor.saveState.notSaved,
+            Icons.edit_note,
+            colorScheme.onSurfaceVariant,
+            colorScheme.surfaceContainerHighest,
+          ),
+        };
+        return Padding(
+          padding: const .symmetric(horizontal: 4),
+          child: DecoratedBox(
+            key: const ValueKey('saveStateChip'),
+            decoration: BoxDecoration(
+              color: bg,
+              borderRadius: BorderRadius.circular(999),
+            ),
+            child: Padding(
+              padding: const .symmetric(horizontal: 10, vertical: 4),
+              child: Row(
+                mainAxisSize: .min,
+                spacing: 4,
+                children: [
+                  Icon(icon, size: 14, color: fg),
+                  Text(
+                    label,
+                    style: TextStyle(
+                      color: fg,
+                      fontSize: 12,
+                      fontWeight: FontWeight.w600,
+                    ),
+                  ),
+                ],
+              ),
+            ),
+          ),
+        );
+      },
+    );
   }
 }

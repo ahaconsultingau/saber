@@ -11,7 +11,7 @@ class SaveIndicator extends StatelessWidget {
   const new({super.key, required this.savingState, required this.triggerSave});
 
   final ValueNotifier<SavingState> savingState;
-  final VoidCallback triggerSave;
+  final Future<void> Function() triggerSave;
 
   @override
   Widget build(BuildContext context) {
@@ -25,10 +25,11 @@ class SaveIndicator extends StatelessWidget {
           child: IconButton(
             key: ValueKey(savingState.value),
             onPressed: () => _onPressed(context),
+            // Aha! copy: always a back arrow (a spinner while saving), so
+            // it reads as "back" and does what back does.
             icon: switch (savingState.value) {
-              .waitingToSave => const Icon(Icons.save),
               .saving => const AdaptiveCircularProgressIndicator(),
-              .saved => const Icon(Icons.arrow_back),
+              _ => const Icon(Icons.arrow_back),
             },
           ),
         );
@@ -36,15 +37,15 @@ class SaveIndicator extends StatelessWidget {
     );
   }
 
-  void _onPressed(BuildContext context) {
-    switch (savingState.value) {
-      case .waitingToSave:
-        triggerSave();
-      case .saving:
-        break;
-      case .saved:
-        _back(context);
+  /// Aha! copy: saves if needed, waits for the save, then goes back.
+  /// Before, with unsaved changes this button only saved.
+  Future<void> _onPressed(BuildContext context) async {
+    if (savingState.value == .waitingToSave) await triggerSave();
+    while (context.mounted && savingState.value == .saving) {
+      await Future.delayed(const Duration(milliseconds: 50));
     }
+    if (!context.mounted || savingState.value != .saved) return;
+    _back(context);
   }
 
   void _back(BuildContext context) {

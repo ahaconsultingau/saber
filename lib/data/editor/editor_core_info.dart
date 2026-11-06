@@ -75,6 +75,15 @@ class EditorCoreInfo {
   /// Stores the current page index so that it can be restored when the file is reloaded.
   int? initialPageIndex;
 
+  /// Aha! copy: the line style chosen in the New note sheet, used once by
+  /// the next new note in place of the default.
+  static CanvasBackgroundPattern? nextNewNotePattern;
+  static CanvasBackgroundPattern? _takeNextNewNotePattern() {
+    final pattern = nextNewNotePattern;
+    nextNewNotePattern = null;
+    return pattern;
+  }
+
   /// Aha! copy: true for a note that didn't exist on disk yet (a new note),
   /// so the editor can pick the starting pen from Settings › New pages.
   var createdFresh = false;
@@ -106,7 +115,8 @@ class EditorCoreInfo {
   new({required this.filePath, this.readOnlyReason})
     : nextImageId = 0,
       // Aha! copy: a new note starts with the design in Settings › New pages.
-      backgroundPattern = stows.newNoteBackgroundPattern.value,
+      backgroundPattern =
+          _takeNextNewNotePattern() ?? stows.newNoteBackgroundPattern.value,
       lineHeight = stows.newNoteLineHeight.value,
       lineThickness = stows.newNoteLineThickness.value,
       backgroundColor = stows.newNoteBackgroundColor.value == 0
