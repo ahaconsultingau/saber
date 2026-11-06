@@ -723,7 +723,10 @@ class _InteractiveCanvasViewerState extends State<InteractiveCanvasViewer>
   _GestureType _getGestureType(ScaleUpdateDetails details) {
     final double scale = !widget.scaleEnabled ? 1.0 : details.scale;
     final double rotation = !_rotateEnabled ? 0.0 : details.rotation;
-    if ((scale - 1).abs() > rotation.abs()) {
+    // Aha! copy: only a clear pinch or spread zooms; the small change in
+    // finger spacing while two fingers scroll together doesn't.
+    if ((scale - 1).abs() > pinchThreshold &&
+        (scale - 1).abs() > rotation.abs()) {
       return _GestureType.scale;
     } else if (rotation != 0.0) {
       return _GestureType.rotate;
@@ -733,6 +736,17 @@ class _InteractiveCanvasViewerState extends State<InteractiveCanvasViewer>
   }
 
   bool isCurrentGestureADrawGesture = false;
+
+  /// Aha! copy: how far (as a fraction) the fingers must spread or pinch
+  /// before a two-finger gesture zooms.
+  static const pinchThreshold = 0.08;
+
+  /// Aha! copy: once two fingers have scrolled this far (logical px) without
+  /// a clear pinch, the gesture stays a scroll to the end.
+  static const scrollLockDistance = 24.0;
+
+  Offset? _focalStart;
+  var _scrollLocked = false;
 
   /// Aha! copy: pointers in the current gesture, its device kind, and whether
   /// it is being ignored by [InteractiveCanvasViewer.shouldIgnoreTouch].
@@ -749,6 +763,8 @@ class _InteractiveCanvasViewerState extends State<InteractiveCanvasViewer>
   void _onScaleStart(ScaleStartDetails details) {
     _pointerCount = details.pointerCount;
     _gestureKind = details.kind;
+    _focalStart = details.localFocalPoint;
+    _scrollLocked = false;
     _ignoringGesture = _touchShouldBeIgnored();
     if (_ignoringGesture) return;
     if (_controller.isAnimating) {
@@ -796,7 +812,22 @@ class _InteractiveCanvasViewerState extends State<InteractiveCanvasViewer>
       // rotation despite being a two-finger gesture. Here the gesture is
       // allowed to be reinterpreted as its correct type after originally
       // being marked as a pan.
-      _gestureType = _getGestureType(details);
+      // Aha! copy: ...but not once it has clearly been a scroll.
+      if (!_scrollLocked &&
+          (details.localFocalPoint - (_focalStart ?? details.localFocalPoint))
+                  .distance >
+              scrollLockDistance) {
+        _scrollLocked = true;
+      }
+      if (!_scrollLocked) {
+        final newType = _getGestureType(details);
+        if (newType == _GestureType.scale) {
+          // Start zooming from where we are, without a jump.
+          _scaleStart = scale / details.scale;
+          _referenceFocalPoint = focalPointScene;
+        }
+        _gestureType = newType;
+      }
     } else {
       _gestureType ??= _getGestureType(details);
     }
@@ -855,7 +886,12 @@ class _InteractiveCanvasViewerState extends State<InteractiveCanvasViewer>
         // details may have a change in scale here when scaleEnabled is false.
         // In an effort to keep the behavior similar whether or not scaleEnabled
         // is true, these gestures are thrown away.
-        if (details.scale != 1.0) {
+        // Aha! copy: with zoom on, a scroll whose finger spacing drifts a
+        // little (under the pinch threshold) still scrolls.
+        if (details.scale != 1.0 &&
+            !_scrollLocked &&
+            (!widget.scaleEnabled ||
+                (details.scale - 1).abs() > pinchThreshold)) {
           return;
         }
 

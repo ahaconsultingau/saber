@@ -136,4 +136,75 @@ void main() {
     await drag(tester, fingers: 2);
     expect(transform(tester), isNot(before));
   });
+
+  double zoomOf(WidgetTester tester) => transform(tester).getMaxScaleOnAxis();
+
+  /// Two fingers moving up together, drifting apart by [spreadPerStep] px
+  /// each step (fingers' spacing changes as people scroll).
+  Future<void> twoFingerMove(
+    WidgetTester tester, {
+    required Offset step,
+    double spreadPerStep = 0,
+    int steps = 12,
+  }) async {
+    final a = await tester.startGesture(
+      centre + const Offset(-60, 0),
+      pointer: 200,
+    );
+    final b = await tester.startGesture(
+      centre + const Offset(60, 0),
+      pointer: 201,
+    );
+    for (var i = 0; i < steps; i++) {
+      await a.moveBy(step + Offset(-spreadPerStep, 0));
+      await b.moveBy(step + Offset(spreadPerStep, 0));
+      await tester.pump(const Duration(milliseconds: 16));
+    }
+    await a.up();
+    await b.up();
+    await tester.pumpAndSettle();
+    await tester.pump(const Duration(seconds: 6));
+  }
+
+  testWidgets('Two fingers scrolling with a little drift only scroll', (
+    tester,
+  ) async {
+    await openEditor(tester, 'scrollNoZoom');
+    final zoomBefore = zoomOf(tester);
+    final before = transform(tester);
+    // About 7% spread over the scroll: the kind of drift that used to zoom.
+    await twoFingerMove(
+      tester,
+      step: const Offset(0, -25),
+      spreadPerStep: 0.35,
+    );
+    expect(zoomOf(tester), closeTo(zoomBefore, 0.001));
+    expect(transform(tester), isNot(before), reason: 'it did scroll');
+  });
+
+  testWidgets('A clear pinch still zooms', (tester) async {
+    await openEditor(tester, 'pinchZooms');
+    final zoomBefore = zoomOf(tester);
+    await twoFingerMove(tester, step: Offset.zero, spreadPerStep: 6);
+    expect(zoomOf(tester), greaterThan(zoomBefore * 1.2));
+  });
+
+  testWidgets('A long scroll keeps scrolling even as the fingers drift', (
+    tester,
+  ) async {
+    await openEditor(tester, 'longScroll');
+    final zoomBefore = zoomOf(tester);
+    final before = transform(tester);
+    // 30 steps, drifting ~25% apart overall: once it's a scroll, it stays one.
+    await twoFingerMove(
+      tester,
+      step: const Offset(0, -20),
+      spreadPerStep: 0.5,
+      steps: 30,
+    );
+    expect(zoomOf(tester), closeTo(zoomBefore, 0.001));
+    final moved =
+        (transform(tester).getTranslation() - before.getTranslation()).length;
+    expect(moved, greaterThan(400), reason: 'scrolled the whole way');
+  });
 }
