@@ -129,6 +129,9 @@ void main() {
     stows.layoutSize.value = .tablet;
     FileManager.documentsDirectory =
         '$tmpDir/backArrow/${FileManager.appRootDirectoryPrefix}';
+    final docs = Directory(FileManager.documentsDirectory);
+    if (docs.existsSync()) docs.deleteSync(recursive: true);
+    docs.createSync(recursive: true);
     tester.view.physicalSize = const Size(1600, 2560);
     tester.view.devicePixelRatio = 2;
     addTearDown(tester.view.reset);
