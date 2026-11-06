@@ -1,10 +1,7 @@
 import 'package:file_picker/file_picker.dart';
-import 'package:flutter_speed_dial/flutter_speed_dial.dart';
 import 'package:go_router/go_router.dart';
 import 'package:material_ui/material_ui.dart';
 import 'package:saber/components/home/new_note_dialog.dart';
-import 'package:saber/components/navbar/bottom_navbar.dart';
-import 'package:saber/components/theming/saber_theme.dart';
 import 'package:saber/data/file_manager/file_manager.dart';
 import 'package:saber/data/routes.dart';
 import 'package:saber/i18n/strings.g.dart';
@@ -16,114 +13,90 @@ class NewNoteButton extends StatefulWidget {
   final bool cupertino;
   final String? path;
 
+  /// Aha! copy: asks for the new note's name, folder and line style, then
+  /// opens it. Used by this button and by the side bar's New note.
+  static Future<void> createNote(BuildContext context, {String? folder}) async {
+    final newFilePath = await NewNoteDialog.show(
+      context,
+      folder: folder == null || folder.isEmpty ? '/' : folder,
+    );
+    if (newFilePath == null || !context.mounted) return;
+    context.push(RoutePaths.editFilePath(newFilePath));
+  }
+
   @override
   State<NewNoteButton> createState() => _NewNoteButtonState();
 }
 
 class _NewNoteButtonState extends State<NewNoteButton> {
-  final ValueNotifier<bool> isDialOpen = ValueNotifier(false);
-
+  /// Aha! copy: one solid "+ New note" button that opens the New note sheet
+  /// straight away (it was a pale, see-through + with a menu), with a small
+  /// Import button beside it.
   @override
   Widget build(BuildContext context) {
-    const materialBorderRadius = BorderRadius.all(.circular(16));
-    return SpeedDial(
-      spacing: 3,
-      mini: true,
-      openCloseDial: isDialOpen,
-      childPadding: const .all(5),
-      spaceBetweenChildren: 4,
-      switchLabelPosition: Directionality.of(context) == .rtl,
-      shape: widget.cupertino
-          ? const CircleBorder()
-          : const RoundedRectangleBorder(borderRadius: materialBorderRadius),
-      dialRoot: (context, open, toggleChildren) {
-        final platform = Theme.of(context).platform;
-        return GlassyContainer(
-          height: 56,
-          borderRadius: platform.isCupertino ? null : materialBorderRadius,
-          child: AspectRatio(
-            aspectRatio: 1,
-            child: IconButton(
-              onPressed: toggleChildren,
-              tooltip: t.home.tooltips.newNote,
-              visualDensity: VisualDensity.compact,
-              style: IconButton.styleFrom(
-                padding: .zero,
-                shape: platform.isCupertino
-                    ? const CircleBorder()
-                    : const RoundedRectangleBorder(
-                        borderRadius: materialBorderRadius,
-                      ),
-              ),
-              icon: const Center(child: Icon(Icons.add)),
-            ),
-          ),
-        );
-      },
+    final colorScheme = ColorScheme.of(context);
+    return Row(
+      mainAxisSize: .min,
+      spacing: 12,
       children: [
-        SpeedDialChild(
-          child: const Icon(Icons.create),
-          label: t.home.create.newNote,
-          onTap: () async {
-            // Aha! copy: ask for the name, folder and line style first.
-            final newFilePath = await NewNoteDialog.show(
-              context,
-              folder: widget.path == null || widget.path!.isEmpty
-                  ? '/'
-                  : widget.path,
-            );
-            if (newFilePath == null || !context.mounted) return;
-            context.push(RoutePaths.editFilePath(newFilePath));
-          },
+        IconButton.filledTonal(
+          tooltip: t.home.create.importNote,
+          onPressed: _import,
+          icon: const Icon(Icons.file_upload_outlined),
         ),
-        SpeedDialChild(
-          child: const Icon(Icons.note_add),
-          label: t.home.create.importNote,
-          onTap: () async {
-            final file = await FilePicker.pickFile(type: FileType.any);
-            if (file == null) return;
-
-            final filePath = file.path;
-            final fileName = file.name;
-            if (filePath == null) return;
-
-            if (filePath.toLowerCase().endsWith('.sbn') ||
-                filePath.toLowerCase().endsWith('.sbn2') ||
-                filePath.toLowerCase().endsWith('.sba')) {
-              final path = await FileManager.importFile(
-                filePath,
-                '${widget.path ?? ''}/',
-              );
-              if (path == null) return;
-              if (!context.mounted) return;
-
-              context.push(RoutePaths.editFilePath(path));
-            } else if (filePath.toLowerCase().endsWith('.pdf')) {
-              if (!Editor.canRasterPdf) return;
-              if (!mounted) return;
-
-              final fileNameWithoutExtension = fileName.substring(
-                0,
-                fileName.length - '.pdf'.length,
-              );
-              final sbnFilePath =
-                  await FileManager.suffixFilePathToMakeItUnique(
-                    '${widget.path ?? ''}/$fileNameWithoutExtension',
-                  );
-              if (!context.mounted) return;
-
-              context.push(RoutePaths.editImportPdf(sbnFilePath, filePath));
-            } else {
-              if (context.mounted) {
-                ScaffoldMessenger.of(
-                  context,
-                ).showSnackBar(SnackBar(content: Text(t.home.invalidFormat)));
-              }
-              throw 'Invalid file type';
-            }
-          },
+        FloatingActionButton.extended(
+          heroTag: null,
+          tooltip: t.home.tooltips.newNote,
+          backgroundColor: colorScheme.primary,
+          foregroundColor: colorScheme.onPrimary,
+          onPressed: () =>
+              NewNoteButton.createNote(context, folder: widget.path),
+          icon: const Icon(Icons.add),
+          label: Text(t.home.create.newNote),
         ),
       ],
     );
+  }
+
+  Future<void> _import() async {
+    final file = await FilePicker.pickFile(type: FileType.any);
+    if (file == null) return;
+
+    final filePath = file.path;
+    final fileName = file.name;
+    if (filePath == null) return;
+
+    if (filePath.toLowerCase().endsWith('.sbn') ||
+        filePath.toLowerCase().endsWith('.sbn2') ||
+        filePath.toLowerCase().endsWith('.sba')) {
+      final path = await FileManager.importFile(
+        filePath,
+        '${widget.path ?? ''}/',
+      );
+      if (path == null) return;
+      if (!mounted) return;
+
+      context.push(RoutePaths.editFilePath(path));
+    } else if (filePath.toLowerCase().endsWith('.pdf')) {
+      if (!Editor.canRasterPdf) return;
+      if (!mounted) return;
+
+      final fileNameWithoutExtension = fileName.substring(
+        0,
+        fileName.length - '.pdf'.length,
+      );
+      final sbnFilePath = await FileManager.suffixFilePathToMakeItUnique(
+        '${widget.path ?? ''}/$fileNameWithoutExtension',
+      );
+      if (!mounted) return;
+
+      context.push(RoutePaths.editImportPdf(sbnFilePath, filePath));
+    } else {
+      if (mounted) {
+        ScaffoldMessenger.of(context)
+            .showSnackBar(SnackBar(content: Text(t.home.invalidFormat)));
+      }
+      throw 'Invalid file type';
+    }
   }
 }

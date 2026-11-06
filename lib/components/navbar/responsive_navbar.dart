@@ -2,6 +2,7 @@ import 'package:flutter_hooks/flutter_hooks.dart';
 import 'package:go_router/go_router.dart';
 import 'package:material_ui/material_ui.dart';
 import 'package:path_to_regexp/path_to_regexp.dart';
+import 'package:saber/components/home/new_note_button.dart';
 import 'package:saber/components/navbar/bottom_navbar.dart';
 import 'package:saber/components/navbar/left_navbar.dart';
 import 'package:saber/components/navbar/top_adwaita_navbar.dart';
@@ -20,8 +21,17 @@ class ResponsiveNavbar extends HookWidget {
   static var isLargeScreen = true;
 
   void onDestinationSelected(BuildContext context, int index) {
-    if (index == selectedIndex) return;
     final routes = HomeRoutes.routes;
+
+    // Aha! copy: the Whiteboard slot opens the New note sheet instead.
+    final whiteboardRoute = pathToFunction(RoutePaths.home)({
+      'subpage': HomePage.whiteboardSubpage,
+    });
+    if (routes[index].path == whiteboardRoute) {
+      NewNoteButton.createNote(context);
+      return;
+    }
+    if (index == selectedIndex) return;
 
     // if leaving whiteboard, check if saved
     final whiteboardPath = pathToFunction(RoutePaths.home)({

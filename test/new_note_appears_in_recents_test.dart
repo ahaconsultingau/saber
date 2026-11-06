@@ -60,9 +60,8 @@ void main() {
     expect(find.byType(PreviewCard), findsNothing);
 
     // New note
+    // The solid "+ New note" button opens the sheet straight away.
     await tester.tap(find.byTooltip(t.home.tooltips.newNote));
-    await tester.pumpAndSettle();
-    await tester.tap(find.text(t.home.create.newNote));
     await tester.pumpAndSettle();
     // The New note sheet asks for a name first.
     expect(find.text(t.home.newNote.title), findsWidgets);
