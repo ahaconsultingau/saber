@@ -12,10 +12,15 @@ additions. Everything else is standard Saber.
 
 ## Builds
 
-- The Android app is built by GitHub Actions (**Build for Android**). Run it
-  from the Actions tab, or it runs when `.github/workflows/android.yml`
-  changes. The app file is under the run's **Artifacts** as
-  `Saber-Android`.
+- The Android app is built by GitHub Actions (**Build for Android**) on
+  every push that changes the app (`lib/`, `android/`, `assets/`,
+  `packages/`, `pubspec.*`) or the workflow, or by hand from the Actions tab.
+- Each build is published as its own release, `v<version>-aha.<build>`
+  (e.g. `v1.37.1-aha.3`), with the file `Saber-Aha.apk`. The app's version
+  name matches the release, so **Obtainium** on the tablet (watching
+  `https://github.com/ahaconsultingau/saber`) offers each update.
+  https://github.com/ahaconsultingau/saber/releases/latest always opens the
+  newest.
 - It installs as a separate app, **Saber Aha** (`com.adilhanney.saber.aha`),
   so it doesn't clash with the Play Store Saber.
 - Update checks are off, so it never prompts to install upstream Saber.
