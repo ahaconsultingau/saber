@@ -1809,17 +1809,9 @@ class EditorState extends State<Editor> {
         return PopScope(
           canPop: savingState == .saved,
           onPopInvokedWithResult: (didPop, _) {
-            switch (savingState) {
-              case .waitingToSave:
-                assert(!didPop);
-                saveToFile(); // trigger save now
-                snackBarNeedsToSaveBeforeExiting();
-              case .saving:
-                assert(!didPop);
-                snackBarNeedsToSaveBeforeExiting();
-              case .saved:
-                break;
-            }
+            if (didPop) return;
+            // Aha! copy: one tap on back saves, waits, then leaves.
+            _saveThenLeave();
           },
           child: child!,
         );
@@ -1915,6 +1907,29 @@ class EditorState extends State<Editor> {
             : null,
       ),
     );
+  }
+
+  var _leaving = false;
+
+  /// Saves now (or waits for the save in progress), then leaves the editor.
+  /// If the save fails, stays and says so.
+  Future<void> _saveThenLeave() async {
+    if (_leaving) return;
+    _leaving = true;
+    try {
+      if (savingState.value == .waitingToSave) await saveToFile();
+      while (mounted && savingState.value == .saving) {
+        await Future.delayed(const Duration(milliseconds: 50));
+      }
+      if (!mounted) return;
+      if (savingState.value != .saved)
+        return snackBarNeedsToSaveBeforeExiting();
+      // Navigator.pop, not maybePop: the save is done, so leave even if
+      // PopScope hasn't caught up with the new saving state yet.
+      Navigator.of(context).pop();
+    } finally {
+      _leaving = false;
+    }
   }
 
   void snackBarNeedsToSaveBeforeExiting() {
