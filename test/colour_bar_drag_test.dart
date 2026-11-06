@@ -20,6 +20,7 @@ void main() {
     FlavorConfig.setup();
     setupMockPathProvider();
     stows.colourBarEdge.value = AxisDirection.right;
+    stows.colourBarOpen.value = false;
   });
 
   Future<void> openColours(WidgetTester tester) async {
@@ -108,7 +109,7 @@ void main() {
       ),
     );
     await tester.pumpAndSettle();
-    expect(column, findsNothing);
+    expect(column, findsOneWidget);
     expect(Pen.currentPen.color.withAlpha(255), preset);
   });
 }

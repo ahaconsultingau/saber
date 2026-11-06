@@ -109,6 +109,8 @@ class _ToolbarState extends State<Toolbar> {
   }
 
   void _syncColourPortal() {
+    // Aha! copy: remember whether the bar is open, for the next note too.
+    stows.colourBarOpen.value = showColorOptions.value;
     if (showColorOptions.value) {
       _colourPortal.show();
     } else {
@@ -122,6 +124,13 @@ class _ToolbarState extends State<Toolbar> {
   void initState() {
     _assignKeybindings();
     showColorOptions.addListener(_syncColourPortal);
+    // Aha! copy: the colour bar stays open until the colour circle is
+    // tapped again, so it's still there in the next note.
+    if (stows.colourBarOpen.value) {
+      WidgetsBinding.instance.addPostFrameCallback((_) {
+        if (mounted) showColorOptions.value = true;
+      });
+    }
 
     DynamicMaterialApp.addFullscreenListener(_setState);
 
@@ -279,19 +288,15 @@ class _ToolbarState extends State<Toolbar> {
         },
       ),
       // Aha! copy: the colours open as a slim bar floating on an edge of
-      // the screen (the right unless dragged elsewhere) and close once a
-      // colour is picked or you tap elsewhere.
+      // the screen (the right unless dragged elsewhere). It stays open while
+      // you write and pick colours, until the colour circle is tapped again.
       OverlayPortal(
         controller: _colourPortal,
         overlayChildBuilder: (_) => _ColourColumn(
-          onDismiss: () => showColorOptions.value = false,
           toolbarRect: _toolbarRect(),
           colourBar: (axis) => ColorBar(
             axis: axis,
-            setColor: (color) {
-              widget.setColor(color);
-              showColorOptions.value = false;
-            },
+            setColor: widget.setColor,
             currentColor: currentColor,
             invert: invert,
             isHighlighter: widget.currentTool is Highlighter,
@@ -625,16 +630,10 @@ enum ToolOptions { hide, pen, highlighter, pencil, select }
 /// Aha! copy: the floating colour bar. It opens on the right edge (or the
 /// edge it was last dragged to), upright on the left and right, across at
 /// the top and bottom. Drag its handle and it follows the finger, then snaps
-/// to the nearest edge when let go. A clear layer behind it closes it when
-/// you tap elsewhere.
+/// to the nearest edge when let go. Nothing else is covered: the page around
+/// it can still be written on.
 class _ColourColumn extends StatefulWidget {
-  const new({
-    required this.onDismiss,
-    required this.toolbarRect,
-    required this.colourBar,
-  });
-
-  final VoidCallback onDismiss;
+  const new({required this.toolbarRect, required this.colourBar});
 
   /// Where the editor's toolbar is on screen, so the bar doesn't cover it.
   final Rect? toolbarRect;
@@ -811,16 +810,6 @@ class _ColourColumnState extends State<_ColourColumn> {
       };
     }
 
-    return Stack(
-      children: [
-        Positioned.fill(
-          child: GestureDetector(
-            behavior: HitTestBehavior.opaque,
-            onTap: widget.onDismiss,
-          ),
-        ),
-        placed,
-      ],
-    );
+    return Stack(children: [placed]);
   }
 }

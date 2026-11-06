@@ -237,6 +237,13 @@ class Stows {
     volatile: !_isOnMainIsolate,
   );
 
+  /// Aha! copy: whether the colour bar was left open.
+  final colourBarOpen = PlainStow(
+    'colourBarOpen',
+    false,
+    volatile: !_isOnMainIsolate,
+  );
+
   /// Aha! copy: the six colours on the colour bar for pens and pencils,
   /// as ARGB numbers. Each can be changed with the colour picker.
   final penColourSlots = PlainStow(

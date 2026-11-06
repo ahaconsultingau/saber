@@ -26,6 +26,7 @@ void main() {
     FlavorConfig.setup();
     setupMockPathProvider();
     stows.colourBarEdge.value = AxisDirection.right;
+    stows.colourBarOpen.value = false;
     stows.penColourSlots.value = Stows.defaultPenColourSlots;
     stows.highlighterColourSlots.value = Stows.defaultHighlighterColourSlots;
     // The editor reopens with the last tool used; start each test on a pen.
@@ -96,10 +97,9 @@ void main() {
     await openColours(tester);
     await tester.tap(slot(1));
     await tester.pumpAndSettle();
-    expect(column, findsNothing, reason: 'picking a colour closes the bar');
+    expect(column, findsOneWidget, reason: 'the bar stays open');
 
     // Tap blue again: the picker opens on it.
-    await openColours(tester);
     await tester.tap(slot(1));
     await tester.pumpAndSettle();
     expect(find.byKey(const ValueKey('colourSlotPicker')), findsOneWidget);
