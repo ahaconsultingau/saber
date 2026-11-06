@@ -360,6 +360,21 @@ editor:
     convertToText: Convert to text
   penGuard:
     hint: Pen near · touch paused
+  bookmarks:
+    title: Bookmarks
+    newMeeting: New meeting
+    newMeetingName: Meeting
+    defaultName: Client meeting
+    bookmarkThisPage: Bookmark this page
+    thisPageIsBookmarked: This page is bookmarked
+    empty: No bookmarks yet. Bookmark a page, or start a new meeting page.
+    dateAndPage: $date · page $page
+    edit: Edit bookmark
+    name: Name
+    date: Date
+    writeHeading: Also write the name and date at the top of the page
+    remove: Remove
+    save: Save
   saveState:
     saved: Saved
     saving: Saving…

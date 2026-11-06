@@ -13,6 +13,8 @@ void main() {
       expect(FileManager.assetFileRegex.hasMatch('2023.11.30.sbn2.0'), true);
     });
     test('doesn\'t match files containing a number in the middle', () {
+      // Aha! copy: a note's bookmarks file is a companion too.
+      expect(FileManager.assetFileRegex.hasMatch('name.sbn2.bm'), true);
       expect(FileManager.assetFileRegex.hasMatch('name.0.sbn'), false);
       expect(FileManager.assetFileRegex.hasMatch('name.1.sbn'), false);
       expect(FileManager.assetFileRegex.hasMatch('name.10.sbn'), false);

@@ -1,6 +1,7 @@
 import 'dart:async';
 import 'dart:convert';
 import 'dart:io';
+import 'dart:math' as math;
 import 'dart:typed_data';
 
 import 'package:collapsible/collapsible.dart';
@@ -16,6 +17,7 @@ import 'package:material_ui/material_ui.dart';
 import 'package:path/path.dart' as p;
 import 'package:pdfrx/pdfrx.dart';
 import 'package:perfect_freehand/perfect_freehand.dart';
+import 'package:saber/components/bookmarks/bookmarks_panel.dart';
 import 'package:saber/components/canvas/_asset_cache.dart';
 import 'package:saber/components/canvas/_stroke.dart';
 import 'package:saber/components/canvas/canvas.dart';
@@ -34,6 +36,7 @@ import 'package:saber/components/toolbar/editor_bottom_sheet.dart';
 import 'package:saber/components/toolbar/editor_page_manager.dart';
 import 'package:saber/components/toolbar/insert_table_dialog.dart';
 import 'package:saber/components/toolbar/toolbar.dart';
+import 'package:saber/data/bookmarks/note_bookmarks.dart';
 import 'package:saber/data/editor/editor_core_info.dart';
 import 'package:saber/data/editor/editor_exporter.dart';
 import 'package:saber/data/editor/editor_history.dart';
@@ -228,6 +231,8 @@ class EditorState extends State<Editor> {
     if (coreInfo.createdFresh && !coreInfo.readOnly) {
       _applyNewNoteStartingTool();
     }
+
+    bookmarks = await NoteBookmarks.load(coreInfo.filePath, coreInfo.pages);
 
     if (coreInfo.isEmpty) {
       createPage(-1);
@@ -1139,6 +1144,9 @@ class EditorState extends State<Editor> {
       ]);
       savingState.value = .saved;
       history.markLastChangeAsSaved();
+      // Aha! copy: page numbers may have shifted (pages added, moved or
+      // deleted), so rewrite the bookmarks with the note.
+      if (bookmarks.isNotEmpty) await _saveBookmarks();
     } catch (e, st) {
       log.severe('Failed to save file: $e', e, st);
       savingState.value = .waitingToSave;
@@ -1775,6 +1783,31 @@ class EditorState extends State<Editor> {
       ),
     );
 
+    // Aha! copy: the Bookmarks panel floats over the page, not the toolbar.
+    final Widget canvasWithPanels = showBookmarks
+        ? Stack(
+            children: [
+              canvas,
+              PositionedDirectional(
+                top: 0,
+                bottom: 0,
+                end: 0,
+                width: math.min(320.0, MediaQuery.sizeOf(context).width * 0.4),
+                child: BookmarksPanel(
+                  bookmarks: bookmarks,
+                  pageNumberOf: (b) => coreInfo.pages.indexOf(b.page) + 1,
+                  currentPageIsBookmarked: _currentPageIsBookmarked,
+                  onJump: _jumpToBookmark,
+                  onBookmarkThisPage: _bookmarkThisPage,
+                  onNewMeeting: _newMeeting,
+                  onEdit: _editBookmark,
+                  onClose: () => setState(() => showBookmarks = false),
+                ),
+              ),
+            ],
+          )
+        : canvas;
+
     final Widget body;
     if (isToolbarVertical) {
       body = Row(
@@ -1786,7 +1819,7 @@ class EditorState extends State<Editor> {
           Expanded(
             child: Column(
               children: [
-                Expanded(child: canvas),
+                Expanded(child: canvasWithPanels),
                 readonlyBanner,
               ],
             ),
@@ -1800,7 +1833,7 @@ class EditorState extends State<Editor> {
             ? VerticalDirection.up
             : VerticalDirection.down,
         children: [
-          Expanded(child: canvas),
+          Expanded(child: canvasWithPanels),
           toolbar,
           readonlyBanner,
         ],
@@ -1894,6 +1927,17 @@ class EditorState extends State<Editor> {
                       );
                     },
                   ),
+                  // Aha! copy: Bookmarks, beside Pages (a different view).
+                  IconButton(
+                    icon: Icon(
+                      showBookmarks
+                          ? Icons.bookmarks
+                          : Icons.bookmarks_outlined,
+                    ),
+                    tooltip: t.editor.bookmarks.title,
+                    onPressed: () =>
+                        setState(() => showBookmarks = !showBookmarks),
+                  ),
                   IconButton(
                     icon: const AdaptiveIcon(
                       icon: Icons.more_vert,
@@ -1926,6 +1970,103 @@ class EditorState extends State<Editor> {
             : null,
       ),
     );
+  }
+
+  /// Aha! copy: this note's bookmarks, and whether the panel is open.
+  List<NoteBookmark> bookmarks = [];
+  var showBookmarks = false;
+
+  Future<void> _saveBookmarks() async {
+    if (coreInfo.readOnly) return;
+    await NoteBookmarks.save(coreInfo.filePath, bookmarks, coreInfo.pages);
+  }
+
+  bool get _currentPageIsBookmarked {
+    final index = currentPageIndex;
+    return bookmarks.any((b) => coreInfo.pages.indexOf(b.page) == index);
+  }
+
+  void _jumpToBookmark(NoteBookmark bookmark) {
+    final index = coreInfo.pages.indexOf(bookmark.page);
+    if (index < 0) return;
+    CanvasGestureDetector.scrollToPage(
+      pageIndex: index,
+      pages: coreInfo.pages,
+      screenWidth: MediaQuery.sizeOf(context).width,
+      transformationController: _transformationController,
+    );
+  }
+
+  /// Names and dates a new bookmark on [pageIndex], then adds it.
+  Future<bool> _addBookmark(int pageIndex, {required String name}) async {
+    final result = await showDialog<BookmarkDialogResult>(
+      context: context,
+      builder: (context) => BookmarkDialog(
+        initialName: name,
+        initialDate: DateTime.now(),
+        isNew: true,
+      ),
+    );
+    if (result is! BookmarkSaved || !mounted) return false;
+    if (pageIndex >= coreInfo.pages.length) return false;
+    final page = coreInfo.pages[pageIndex];
+    if (result.writeHeading) {
+      // Quill changes are recorded in the history and autosaved.
+      page.quill.controller.document.insert(
+        0,
+        '${result.name} · ${formatBookmarkDate(result.date)}\n',
+      );
+    }
+    setState(() {
+      bookmarks.add(
+        NoteBookmark(name: result.name, date: result.date, page: page),
+      );
+    });
+    await _saveBookmarks();
+    return true;
+  }
+
+  Future<void> _bookmarkThisPage() =>
+      _addBookmark(currentPageIndex, name: t.editor.bookmarks.defaultName);
+
+  /// A fresh page at the end of the note, bookmarked with today's date.
+  Future<void> _newMeeting() async {
+    if (coreInfo.readOnly) return;
+    // Saber keeps a blank page at the end: use it if it's blank, else add one.
+    var pageIndex = coreInfo.pages.length - 1;
+    if (coreInfo.pages[pageIndex].isNotEmpty) {
+      insertPageAfter(pageIndex);
+      pageIndex++;
+    }
+    createPage(pageIndex); // keep a blank page after it
+    final added = await _addBookmark(
+      pageIndex,
+      name: t.editor.bookmarks.newMeetingName,
+    );
+    if (added && mounted) _jumpToBookmark(bookmarks.last);
+  }
+
+  Future<void> _editBookmark(NoteBookmark bookmark) async {
+    final result = await showDialog<BookmarkDialogResult>(
+      context: context,
+      builder: (context) => BookmarkDialog(
+        initialName: bookmark.name,
+        initialDate: bookmark.date,
+        isNew: false,
+      ),
+    );
+    if (result == null || !mounted) return;
+    setState(() {
+      switch (result) {
+        case BookmarkSaved():
+          bookmark
+            ..name = result.name
+            ..date = result.date;
+        case BookmarkRemoved():
+          bookmarks.remove(bookmark);
+      }
+    });
+    await _saveBookmarks();
   }
 
   /// Aha! copy: a new note starts with the pen chosen in Settings › New

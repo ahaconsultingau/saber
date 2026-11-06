@@ -1,7 +1,7 @@
 # Aha! copy of Saber
 
-A personal copy of [Saber](https://github.com/saber-notes/saber) with two
-additions. Everything else is standard Saber.
+A personal copy of [Saber](https://github.com/saber-notes/saber) with the
+additions below. Everything else is standard Saber.
 
 ## What's added
 
@@ -9,6 +9,11 @@ additions. Everything else is standard Saber.
 |---|---|---|
 | **Convert to text** | Lasso some handwriting, then tap the **T** button on the selection bar | Runs on the tablet with Google's ML Kit (English, Australia). The language pack downloads once, then works offline. Android only. The text goes into the page's typed text, which starts at the top of the page; you can choose to remove the handwriting. |
 | **Insert table** | Toolbar, table button (next to Images) | Pick rows and columns. The table is drawn as straight lines, so the standard Saber apps (including the Mac App Store version) show it. It's selected after inserting, so you can drag it into place, then write in the cells. |
+| **Bookmarks (client notebooks)** | Bookmarks button beside Pages in a note's top bar | A panel floats on the right. **New meeting** adds a page at the end, bookmarked with today's date; **Bookmark this page** names and dates the current page. Tap a bookmark to jump; long-press (or the pencil) to rename, re-date or remove. Optionally writes the name and date at the top of the page, so the Mac app shows them. Stored beside the note in `<note>.sbn2.bm`, which syncs and which the standard Saber leaves alone. |
+| **Palm and sleeve guards** | Settings › Writing | While the pen is near (or for 1 s after it lifts; 0.5 to 3 s) touch on the page is ignored. One finger doesn't move the page; scroll and zoom with two. Each can be switched off. |
+| **Default page design** | Settings › New pages | Line style, spacing and thickness (Saber's sliders), page colour (presets or any colour), starting pen. A note's page menu has "Make this my default for new notes". |
+| **New note sheet** | + then New note | Asks for name, folder and line style. The note's name is outlined with a pencil; a Saved / Saving… / Not saved yet sign sits beside it. Back (button or gesture) saves and leaves in one tap. |
+| **Side bar** | Home | 220 points wide, floats over the notes, closes when you tap outside or choose something. |
 
 ## Builds
 

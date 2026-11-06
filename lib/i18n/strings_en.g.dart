@@ -313,6 +313,7 @@ class Translations$editor$en {
 	late final Translations$editor$imageOptions$en imageOptions = Translations$editor$imageOptions$en.internal(_root);
 	late final Translations$editor$selectionBar$en selectionBar = Translations$editor$selectionBar$en.internal(_root);
 	late final Translations$editor$penGuard$en penGuard = Translations$editor$penGuard$en.internal(_root);
+	late final Translations$editor$bookmarks$en bookmarks = Translations$editor$bookmarks$en.internal(_root);
 	late final Translations$editor$saveState$en saveState = Translations$editor$saveState$en.internal(_root);
 	late final Translations$editor$insertTable$en insertTable = Translations$editor$insertTable$en.internal(_root);
 	late final Translations$editor$convertToText$en convertToText = Translations$editor$convertToText$en.internal(_root);
@@ -1363,6 +1364,57 @@ class Translations$editor$penGuard$en {
 
 	/// en: 'Pen near · touch paused'
 	String get hint => 'Pen near · touch paused';
+}
+
+// Path: editor.bookmarks
+class Translations$editor$bookmarks$en {
+	Translations$editor$bookmarks$en.internal(this._root);
+
+	final Translations _root; // ignore: unused_field
+
+	// Translations
+
+	/// en: 'Bookmarks'
+	String get title => 'Bookmarks';
+
+	/// en: 'New meeting'
+	String get newMeeting => 'New meeting';
+
+	/// en: 'Meeting'
+	String get newMeetingName => 'Meeting';
+
+	/// en: 'Client meeting'
+	String get defaultName => 'Client meeting';
+
+	/// en: 'Bookmark this page'
+	String get bookmarkThisPage => 'Bookmark this page';
+
+	/// en: 'This page is bookmarked'
+	String get thisPageIsBookmarked => 'This page is bookmarked';
+
+	/// en: 'No bookmarks yet. Bookmark a page, or start a new meeting page.'
+	String get empty => 'No bookmarks yet. Bookmark a page, or start a new meeting page.';
+
+	/// en: '$date · page $page'
+	String dateAndPage({required Object date, required Object page}) => '${date} · page ${page}';
+
+	/// en: 'Edit bookmark'
+	String get edit => 'Edit bookmark';
+
+	/// en: 'Name'
+	String get name => 'Name';
+
+	/// en: 'Date'
+	String get date => 'Date';
+
+	/// en: 'Also write the name and date at the top of the page'
+	String get writeHeading => 'Also write the name and date at the top of the page';
+
+	/// en: 'Remove'
+	String get remove => 'Remove';
+
+	/// en: 'Save'
+	String get save => 'Save';
 }
 
 // Path: editor.saveState
