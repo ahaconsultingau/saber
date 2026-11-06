@@ -72,15 +72,24 @@ class ResponsiveNavbar extends HookWidget {
     }
 
     if (isLargeScreen) {
+      // Aha! copy: the open side bar floats over the page instead of
+      // pushing it across.
       return Scaffold(
-        body: Row(
-          crossAxisAlignment: .stretch,
+        body: Stack(
           children: [
-            LeftNavbar(
-              selectedIndex: selectedIndex,
-              onDestinationSelected: (i) => onDestinationSelected(context, i),
+            Padding(
+              padding: const .directional(start: LeftNavbar.collapsedWidth),
+              child: body,
             ),
-            Expanded(child: body),
+            PositionedDirectional(
+              start: 0,
+              top: 0,
+              bottom: 0,
+              child: LeftNavbar(
+                selectedIndex: selectedIndex,
+                onDestinationSelected: (i) => onDestinationSelected(context, i),
+              ),
+            ),
           ],
         ),
       );
