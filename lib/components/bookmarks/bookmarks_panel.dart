@@ -1,6 +1,7 @@
 import 'package:cupertino_ui/cupertino_ui.dart';
 import 'package:intl/intl.dart';
 import 'package:material_ui/material_ui.dart';
+import 'package:saber/components/editor/floating_side_panel.dart';
 import 'package:saber/components/theming/adaptive_alert_dialog.dart';
 import 'package:saber/data/bookmarks/note_bookmarks.dart';
 import 'package:saber/i18n/strings.g.dart';
@@ -43,90 +44,68 @@ class BookmarksPanel extends StatelessWidget {
     final strings = t.editor.bookmarks;
     final sorted = [...bookmarks]..sort((a, b) => b.date.compareTo(a.date));
 
-    return Material(
+    return FloatingSidePanel(
       key: const ValueKey('bookmarksPanel'),
-      elevation: 8,
-      color: colorScheme.surface,
-      child: SafeArea(
-        left: false,
-        child: Padding(
-          padding: const .all(12),
-          child: Column(
-            crossAxisAlignment: .stretch,
-            spacing: 8,
+      title: strings.title,
+      onClose: onClose,
+      children: [
+        FilledButton.icon(
+          onPressed: onNewMeeting,
+          icon: const Icon(Icons.add),
+          label: Text(strings.newMeeting),
+        ),
+        OutlinedButton.icon(
+          onPressed: currentPageIsBookmarked ? null : onBookmarkThisPage,
+          icon: const Icon(Icons.bookmark_add_outlined),
+          label: Text(
+            currentPageIsBookmarked
+                ? strings.thisPageIsBookmarked
+                : strings.bookmarkThisPage,
+          ),
+        ),
+        const Divider(),
+        if (sorted.isEmpty)
+          Padding(
+            padding: const .all(8),
+            child: Text(
+              strings.empty,
+              style: textTheme.bodyMedium?.copyWith(
+                color: colorScheme.onSurfaceVariant,
+              ),
+            ),
+          ),
+        Expanded(
+          child: ListView(
             children: [
-              Row(
-                children: [
-                  Expanded(
-                    child: Text(strings.title, style: textTheme.titleMedium),
-                  ),
-                  IconButton(
-                    tooltip: MaterialLocalizations.of(context).closeButtonLabel,
-                    onPressed: onClose,
-                    icon: const Icon(Icons.close),
-                  ),
-                ],
-              ),
-              FilledButton.icon(
-                onPressed: onNewMeeting,
-                icon: const Icon(Icons.add),
-                label: Text(strings.newMeeting),
-              ),
-              OutlinedButton.icon(
-                onPressed: currentPageIsBookmarked ? null : onBookmarkThisPage,
-                icon: const Icon(Icons.bookmark_add_outlined),
-                label: Text(
-                  currentPageIsBookmarked
-                      ? strings.thisPageIsBookmarked
-                      : strings.bookmarkThisPage,
-                ),
-              ),
-              const Divider(),
-              if (sorted.isEmpty)
-                Padding(
-                  padding: const .all(8),
-                  child: Text(
-                    strings.empty,
-                    style: textTheme.bodyMedium?.copyWith(
-                      color: colorScheme.onSurfaceVariant,
+              for (final b in sorted)
+                Card(
+                  margin: const .only(bottom: 6),
+                  child: ListTile(
+                    leading: const Icon(Icons.bookmark),
+                    title: Text(
+                      b.name,
+                      maxLines: 2,
+                      overflow: TextOverflow.ellipsis,
+                    ),
+                    subtitle: Text(
+                      strings.dateAndPage(
+                        date: formatBookmarkDate(b.date),
+                        page: pageNumberOf(b),
+                      ),
+                    ),
+                    onTap: () => onJump(b),
+                    onLongPress: () => onEdit(b),
+                    trailing: IconButton(
+                      tooltip: strings.edit,
+                      icon: const Icon(Icons.edit_outlined, size: 20),
+                      onPressed: () => onEdit(b),
                     ),
                   ),
                 ),
-              Expanded(
-                child: ListView(
-                  children: [
-                    for (final b in sorted)
-                      Card(
-                        margin: const .only(bottom: 6),
-                        child: ListTile(
-                          leading: const Icon(Icons.bookmark),
-                          title: Text(
-                            b.name,
-                            maxLines: 2,
-                            overflow: TextOverflow.ellipsis,
-                          ),
-                          subtitle: Text(
-                            strings.dateAndPage(
-                              date: formatBookmarkDate(b.date),
-                              page: pageNumberOf(b),
-                            ),
-                          ),
-                          onTap: () => onJump(b),
-                          onLongPress: () => onEdit(b),
-                          trailing: IconButton(
-                            tooltip: strings.edit,
-                            icon: const Icon(Icons.edit_outlined, size: 20),
-                            onPressed: () => onEdit(b),
-                          ),
-                        ),
-                      ),
-                  ],
-                ),
-              ),
             ],
           ),
         ),
-      ),
+      ],
     );
   }
 }

@@ -1,7 +1,6 @@
 import 'dart:async';
 import 'dart:convert';
 import 'dart:io';
-import 'dart:math' as math;
 import 'dart:typed_data';
 
 import 'package:collapsible/collapsible.dart';
@@ -25,6 +24,7 @@ import 'package:saber/components/canvas/canvas_gesture_detector.dart';
 import 'package:saber/components/canvas/canvas_image.dart';
 import 'package:saber/components/canvas/image/editor_image.dart';
 import 'package:saber/components/canvas/save_indicator.dart';
+import 'package:saber/components/editor/floating_side_panel.dart';
 import 'package:saber/components/editor/read_only_banner.dart';
 import 'package:saber/components/theming/adaptive_alert_dialog.dart';
 import 'package:saber/components/theming/adaptive_icon.dart';
@@ -1784,29 +1784,43 @@ class EditorState extends State<Editor> {
     );
 
     // Aha! copy: the Bookmarks panel floats over the page, not the toolbar.
-    final Widget canvasWithPanels = showBookmarks
-        ? Stack(
+    // Aha! copy: Pages and Bookmarks float over the page, not the toolbar,
+    // in the same spot on the right.
+    final Widget? sidePanel = showPages
+        ? FloatingSidePanel(
+            key: const ValueKey('pagesPanel'),
+            title: t.editor.pages,
+            onClose: () => setState(() => showPages = false),
+            children: [Expanded(child: pageManager(context, fillWidth: true))],
+          )
+        : showBookmarks
+        ? BookmarksPanel(
+            bookmarks: bookmarks,
+            pageNumberOf: (b) => coreInfo.pages.indexOf(b.page) + 1,
+            currentPageIsBookmarked: _currentPageIsBookmarked,
+            onJump: _jumpToBookmark,
+            onBookmarkThisPage: _bookmarkThisPage,
+            onNewMeeting: _newMeeting,
+            onEdit: _editBookmark,
+            onClose: () => setState(() => showBookmarks = false),
+          )
+        : null;
+    final Widget canvasWithPanels = sidePanel == null
+        ? canvas
+        : Stack(
             children: [
               canvas,
               PositionedDirectional(
                 top: 0,
                 bottom: 0,
                 end: 0,
-                width: math.min(320.0, MediaQuery.sizeOf(context).width * 0.4),
-                child: BookmarksPanel(
-                  bookmarks: bookmarks,
-                  pageNumberOf: (b) => coreInfo.pages.indexOf(b.page) + 1,
-                  currentPageIsBookmarked: _currentPageIsBookmarked,
-                  onJump: _jumpToBookmark,
-                  onBookmarkThisPage: _bookmarkThisPage,
-                  onNewMeeting: _newMeeting,
-                  onEdit: _editBookmark,
-                  onClose: () => setState(() => showBookmarks = false),
+                width: FloatingSidePanel.widthFor(
+                  MediaQuery.sizeOf(context).width,
                 ),
+                child: sidePanel,
               ),
             ],
-          )
-        : canvas;
+          );
 
     final Widget body;
     if (isToolbarVertical) {
@@ -1916,16 +1930,11 @@ class EditorState extends State<Editor> {
                       cupertinoIcon: CupertinoIcons.rectangle_grid_2x2,
                     ),
                     tooltip: t.editor.pages,
-                    onPressed: () {
-                      showDialog(
-                        context: context,
-                        builder: (context) => AdaptiveAlertDialog(
-                          title: Text(t.editor.pages),
-                          content: pageManager(context),
-                          actions: const [],
-                        ),
-                      );
-                    },
+                    // Aha! copy: opens on the right, where Bookmarks opens.
+                    onPressed: () => setState(() {
+                      showPages = !showPages;
+                      if (showPages) showBookmarks = false;
+                    }),
                   ),
                   // Aha! copy: Bookmarks, beside Pages (a different view).
                   IconButton(
@@ -1935,8 +1944,10 @@ class EditorState extends State<Editor> {
                           : Icons.bookmarks_outlined,
                     ),
                     tooltip: t.editor.bookmarks.title,
-                    onPressed: () =>
-                        setState(() => showBookmarks = !showBookmarks),
+                    onPressed: () => setState(() {
+                      showBookmarks = !showBookmarks;
+                      if (showBookmarks) showPages = false;
+                    }),
                   ),
                   IconButton(
                     icon: const AdaptiveIcon(
@@ -1975,6 +1986,9 @@ class EditorState extends State<Editor> {
   /// Aha! copy: this note's bookmarks, and whether the panel is open.
   List<NoteBookmark> bookmarks = [];
   var showBookmarks = false;
+
+  /// Aha! copy: the Pages panel opens in the same spot as Bookmarks.
+  var showPages = false;
 
   Future<void> _saveBookmarks() async {
     if (coreInfo.readOnly) return;
@@ -2235,8 +2249,9 @@ class EditorState extends State<Editor> {
     );
   }
 
-  Widget pageManager(BuildContext context) {
+  Widget pageManager(BuildContext context, {bool fillWidth = false}) {
     return EditorPageManager(
+      fillWidth: fillWidth,
       coreInfo: coreInfo,
       currentPageIndex: currentPageIndex,
       redrawAndSave: () => setState(() {

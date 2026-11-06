@@ -18,6 +18,7 @@ class EditorPageManager extends StatefulWidget {
     required this.clearPage,
     required this.deletePage,
     required this.transformationController,
+    this.fillWidth = false,
   });
 
   final EditorCoreInfo coreInfo;
@@ -30,6 +31,10 @@ class EditorPageManager extends StatefulWidget {
   final void Function(int) deletePage;
 
   final TransformationController transformationController;
+
+  /// Aha! copy: fill the width it's given (in the side panel) instead of a
+  /// fixed 300.
+  final bool fillWidth;
 
   @override
   State<EditorPageManager> createState() => _EditorPageManagerState();
@@ -48,8 +53,8 @@ class _EditorPageManagerState extends State<EditorPageManager> {
     final platform = Theme.of(context).platform;
     final cupertino = platform.isCupertino;
     return SizedBox(
-      width: cupertino ? null : 300,
-      height: cupertino ? 600 : null,
+      width: cupertino || widget.fillWidth ? null : 300,
+      height: cupertino && !widget.fillWidth ? 600 : null,
       child: ReorderableListView.builder(
         buildDefaultDragHandles: false,
         itemCount: widget.coreInfo.pages.length,

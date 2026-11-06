@@ -264,6 +264,34 @@ void main() {
       );
     });
 
+    testWidgets('Pages opens in the same spot as Bookmarks, one at a time', (
+      tester,
+    ) async {
+      freshFolder('pagesPanel');
+      await openNote(tester, '/Pages panel');
+      const pages = ValueKey('pagesPanel');
+      const marks = ValueKey('bookmarksPanel');
+
+      await tester.tap(find.byTooltip(t.editor.pages));
+      await tester.pumpAndSettle();
+      expect(find.byKey(pages), findsOneWidget);
+      expect(find.byType(Dialog), findsNothing, reason: 'no longer a dialog');
+      final pagesRect = tester.getRect(find.byKey(pages));
+
+      await tester.tap(find.byTooltip(t.editor.bookmarks.title));
+      await tester.pumpAndSettle();
+      expect(find.byKey(pages), findsNothing);
+      expect(find.byKey(marks), findsOneWidget);
+      expect(tester.getRect(find.byKey(marks)), pagesRect);
+
+      await tester.tap(find.byTooltip(t.editor.pages));
+      await tester.pumpAndSettle();
+      expect(find.byKey(marks), findsNothing);
+      await tester.tap(find.byTooltip(t.editor.pages));
+      await tester.pumpAndSettle();
+      expect(find.byKey(pages), findsNothing, reason: 'the button toggles it');
+    });
+
     testWidgets('The date can be changed', (tester) async {
       freshFolder('bookmarksDate');
       final editor = await openNote(tester, '/Dated');
