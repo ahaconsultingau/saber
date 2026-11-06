@@ -273,6 +273,7 @@ editor:
     select: Select
     toggleEraser: Toggle eraser (Ctrl E)
     photo: Images
+    table: Insert table
     text: Text
     toggleFingerDrawing: Toggle finger drawing (Ctrl F)
     undo: Undo
@@ -326,6 +327,24 @@ editor:
   selectionBar:
     delete: Delete
     duplicate: Duplicate
+    convertToText: Convert to text
+  insertTable:
+    title: Insert table
+    rows: Rows
+    columns: Columns
+    insert: Insert
+    hint: The table is selected after it's inserted, so you can drag it into place.
+  convertToText:
+    title: Convert to text
+    downloading: Downloading the handwriting pack. This happens once and needs an internet connection.
+    reading: Reading your handwriting…
+    nothingFound: No handwriting was found in the selection.
+    failed: The handwriting couldn't be read. Check your internet connection if this is the first time, then try again.
+    removeHandwriting: Remove the handwriting
+    textLayerNote: The text is added to the page's typed text, which starts at the top of the page.
+    copy: Copy
+    copied: Copied
+    addToPage: Add to page
   menu:
     clearPage: Clear page $page/$totalPages
     clearAllPages: Clear all pages

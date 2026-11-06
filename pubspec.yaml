@@ -162,6 +162,7 @@ dependencies:
   dynamic_yaru: ^0.2.0
   image: 4.10.2  # 4.11.0 has a broken version constraint for `archive`
   pool: ^1.5.2
+  google_mlkit_digital_ink_recognition: ^1.0.0
 
 dev_dependencies:
   flutter_test:

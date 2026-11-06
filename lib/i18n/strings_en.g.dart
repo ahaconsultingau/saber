@@ -310,6 +310,8 @@ class Translations$editor$en {
 	late final Translations$editor$colors$en colors = Translations$editor$colors$en.internal(_root);
 	late final Translations$editor$imageOptions$en imageOptions = Translations$editor$imageOptions$en.internal(_root);
 	late final Translations$editor$selectionBar$en selectionBar = Translations$editor$selectionBar$en.internal(_root);
+	late final Translations$editor$insertTable$en insertTable = Translations$editor$insertTable$en.internal(_root);
+	late final Translations$editor$convertToText$en convertToText = Translations$editor$convertToText$en.internal(_root);
 	late final Translations$editor$menu$en menu = Translations$editor$menu$en.internal(_root);
 	late final Translations$editor$photoPdfError$en photoPdfError = Translations$editor$photoPdfError$en.internal(_root);
 	late final Translations$editor$readOnlyBanner$en readOnlyBanner = Translations$editor$readOnlyBanner$en.internal(_root);
@@ -1068,6 +1070,9 @@ class Translations$editor$toolbar$en {
 	/// en: 'Images'
 	String get photo => 'Images';
 
+	/// en: 'Insert table'
+	String get table => 'Insert table';
+
 	/// en: 'Text'
 	String get text => 'Text';
 
@@ -1256,6 +1261,72 @@ class Translations$editor$selectionBar$en {
 
 	/// en: 'Duplicate'
 	String get duplicate => 'Duplicate';
+
+	/// en: 'Convert to text'
+	String get convertToText => 'Convert to text';
+}
+
+// Path: editor.insertTable
+class Translations$editor$insertTable$en {
+	Translations$editor$insertTable$en.internal(this._root);
+
+	final Translations _root; // ignore: unused_field
+
+	// Translations
+
+	/// en: 'Insert table'
+	String get title => 'Insert table';
+
+	/// en: 'Rows'
+	String get rows => 'Rows';
+
+	/// en: 'Columns'
+	String get columns => 'Columns';
+
+	/// en: 'Insert'
+	String get insert => 'Insert';
+
+	/// en: 'The table is selected after it's inserted, so you can drag it into place.'
+	String get hint => 'The table is selected after it\'s inserted, so you can drag it into place.';
+}
+
+// Path: editor.convertToText
+class Translations$editor$convertToText$en {
+	Translations$editor$convertToText$en.internal(this._root);
+
+	final Translations _root; // ignore: unused_field
+
+	// Translations
+
+	/// en: 'Convert to text'
+	String get title => 'Convert to text';
+
+	/// en: 'Downloading the handwriting pack. This happens once and needs an internet connection.'
+	String get downloading => 'Downloading the handwriting pack. This happens once and needs an internet connection.';
+
+	/// en: 'Reading your handwriting…'
+	String get reading => 'Reading your handwriting…';
+
+	/// en: 'No handwriting was found in the selection.'
+	String get nothingFound => 'No handwriting was found in the selection.';
+
+	/// en: 'The handwriting couldn't be read. Check your internet connection if this is the first time, then try again.'
+	String get failed => 'The handwriting couldn\'t be read. Check your internet connection if this is the first time, then try again.';
+
+	/// en: 'Remove the handwriting'
+	String get removeHandwriting => 'Remove the handwriting';
+
+	/// en: 'The text is added to the page's typed text, which starts at the top of the page.'
+	String get textLayerNote => 'The text is added to the page\'s typed text, which starts at the top of the page.';
+
+	/// en: 'Copy'
+	String get copy => 'Copy';
+
+	/// en: 'Copied'
+	String get copied => 'Copied';
+
+	/// en: 'Add to page'
+	String get addToPage => 'Add to page';
 }
 
 // Path: editor.menu

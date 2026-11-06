@@ -15,6 +15,7 @@ import 'package:logging/logging.dart';
 import 'package:material_ui/material_ui.dart';
 import 'package:path/path.dart' as p;
 import 'package:pdfrx/pdfrx.dart';
+import 'package:perfect_freehand/perfect_freehand.dart';
 import 'package:saber/components/canvas/_asset_cache.dart';
 import 'package:saber/components/canvas/_stroke.dart';
 import 'package:saber/components/canvas/canvas.dart';
@@ -28,8 +29,10 @@ import 'package:saber/components/theming/adaptive_icon.dart';
 import 'package:saber/components/theming/dynamic_material_app.dart';
 import 'package:saber/components/theming/saber_theme.dart';
 import 'package:saber/components/toolbar/color_bar.dart';
+import 'package:saber/components/toolbar/convert_to_text_dialog.dart';
 import 'package:saber/components/toolbar/editor_bottom_sheet.dart';
 import 'package:saber/components/toolbar/editor_page_manager.dart';
+import 'package:saber/components/toolbar/insert_table_dialog.dart';
 import 'package:saber/components/toolbar/toolbar.dart';
 import 'package:saber/data/editor/editor_core_info.dart';
 import 'package:saber/data/editor/editor_exporter.dart';
@@ -38,6 +41,7 @@ import 'package:saber/data/editor/page.dart';
 import 'package:saber/data/extensions/change_notifier_extensions.dart';
 import 'package:saber/data/extensions/matrix4_extensions.dart';
 import 'package:saber/data/file_manager/file_manager.dart';
+import 'package:saber/data/handwriting/handwriting_recognizer.dart';
 import 'package:saber/data/nextcloud/saber_syncer.dart';
 import 'package:saber/data/prefs.dart';
 import 'package:saber/data/tools/_tool.dart';
@@ -48,6 +52,7 @@ import 'package:saber/data/tools/pen.dart';
 import 'package:saber/data/tools/pencil.dart';
 import 'package:saber/data/tools/select.dart';
 import 'package:saber/data/tools/shape_pen.dart';
+import 'package:saber/data/tools/table_lines.dart';
 import 'package:saber/i18n/strings.g.dart';
 import 'package:saber/pages/home/whiteboard.dart';
 import 'package:sbn/change.dart';
@@ -865,6 +870,106 @@ class EditorState extends State<Editor> {
     autosaveAfterDelay();
   }
 
+  /// Reads the selected handwriting and, if confirmed, adds the text to
+  /// the page's typed text (optionally removing the handwriting).
+  Future<void> convertSelectionToText() async {
+    final select = currentTool;
+    if (select is! Select || !select.doneSelecting) return;
+    final pageIndex = select.selectResult.pageIndex;
+    final strokes = List.of(select.selectResult.strokes);
+    if (strokes.isEmpty) return;
+
+    final result = await showDialog<ConvertToTextResult>(
+      context: context,
+      builder: (context) => ConvertToTextDialog(
+        isModelDownloaded: HandwritingRecognizer.isModelDownloaded,
+        downloadModel: HandwritingRecognizer.downloadModel,
+        recognize: () => HandwritingRecognizer.recognize(strokes),
+      ),
+    );
+    if (result == null || !mounted) return;
+    if (pageIndex >= coreInfo.pages.length) return;
+    final page = coreInfo.pages[pageIndex];
+
+    if (result.text.isNotEmpty) {
+      // Quill changes are recorded in the history and autosaved
+      // by [listenToQuillChanges].
+      final document = page.quill.controller.document;
+      final separator = document.isEmpty() ? '' : '\n';
+      document.insert(document.length - 1, '$separator${result.text}');
+    }
+
+    if (result.removeHandwriting) {
+      final handwriting = strokes
+          .where(HandwritingRecognizer.isHandwriting)
+          .where(page.strokes.contains)
+          .toList();
+      if (handwriting.isNotEmpty) {
+        setState(() {
+          page.strokes.removeWhere(handwriting.contains);
+          select.unselect();
+          history.recordChange(
+            HistoricDelete(strokes: handwriting, images: const []),
+          );
+        });
+        autosaveAfterDelay();
+      }
+    }
+    setState(() {});
+  }
+
+  /// Asks for a size, then draws a table on the current page as straight
+  /// lines and selects it so it can be dragged into place.
+  Future<void> insertTable() async {
+    if (coreInfo.readOnly) return;
+    final size = await InsertTableDialog.show(context);
+    if (size == null || !mounted) return;
+    final (rows, columns) = size;
+
+    final pageIndex = currentPageIndex;
+    createPage(pageIndex);
+    final page = coreInfo.pages[pageIndex];
+    final rect = TableLines.placement(page.size, rows);
+
+    final strokes = [
+      for (final (start, end) in TableLines.build(rect, rows, columns))
+        Stroke(
+          color: Pen.currentPen.color,
+          pressureEnabled: false,
+          options: StrokeOptions(
+            size: 3,
+            thinning: 0,
+            smoothing: 0,
+            streamline: 0,
+            simulatePressure: false,
+            start: StrokeEndOptions.start(taperEnabled: false),
+            end: StrokeEndOptions.end(taperEnabled: false),
+            isComplete: true,
+          ),
+          pageIndex: pageIndex,
+          page: page,
+          toolId: .ballpointPen,
+        )..addPoints([start, end, end]),
+    ];
+
+    setState(() {
+      page.strokes.addAll(strokes);
+      history.recordChange(HistoricAdd(strokes: strokes, images: const []));
+
+      final select = Select.currentSelect;
+      select.selectResult = SelectResult(
+        pageIndex: pageIndex,
+        strokes: strokes,
+        images: [],
+        path: Path()..addRect(rect.inflate(12)),
+        pageIndexStart: pageIndex,
+      );
+      select.doneSelecting = true;
+      currentTool = select;
+    });
+    autosaveAfterDelay();
+  }
+
   void listenToQuillChanges(QuillStruct quill, int pageIndex) {
     quill.changeSubscription?.cancel();
     quill.changeSubscription = quill.controller.changes.listen((event) {
@@ -1590,6 +1695,10 @@ class EditorState extends State<Editor> {
               autosaveAfterDelay();
             });
           },
+          convertSelectionToText: HandwritingRecognizer.isSupported
+              ? convertSelectionToText
+              : null,
+          insertTable: insertTable,
           setColor: (color) {
             setState(() {
               updateColorBar(color);
