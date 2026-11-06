@@ -128,6 +128,7 @@ class Translations$settings$en {
 
 	// Translations
 	late final Translations$settings$prefCategories$en prefCategories = Translations$settings$prefCategories$en.internal(_root);
+	late final Translations$settings$newPages$en newPages = Translations$settings$newPages$en.internal(_root);
 	late final Translations$settings$prefLabels$en prefLabels = Translations$settings$prefLabels$en.internal(_root);
 	late final Translations$settings$prefDescriptions$en prefDescriptions = Translations$settings$prefDescriptions$en.internal(_root);
 	late final Translations$settings$themeModes$en themeModes = Translations$settings$themeModes$en.internal(_root);
@@ -638,11 +639,43 @@ class Translations$settings$prefCategories$en {
 	/// en: 'Editor'
 	String get editor => 'Editor';
 
+	/// en: 'New pages'
+	String get newPages => 'New pages';
+
 	/// en: 'Performance'
 	String get performance => 'Performance';
 
 	/// en: 'Advanced'
 	String get advanced => 'Advanced';
+}
+
+// Path: settings.newPages
+class Translations$settings$newPages$en {
+	Translations$settings$newPages$en.internal(this._root);
+
+	final Translations _root; // ignore: unused_field
+
+	// Translations
+
+	/// en: 'Line style'
+	String get lineStyle => 'Line style';
+
+	/// en: 'Page colour'
+	String get pageColour => 'Page colour';
+
+	/// en: 'Starting pen'
+	String get startingPen => 'Starting pen';
+
+	/// en: 'The pen I last used'
+	String get lastUsedPen => 'The pen I last used';
+
+	/// en: 'Preview'
+	String get preview => 'Preview';
+
+	/// en: 'Every new note starts like this. Existing notes keep their own design.'
+	String get previewNote => 'Every new note starts like this. Existing notes keep their own design.';
+
+	late final Translations$settings$newPages$colours$en colours = Translations$settings$newPages$colours$en.internal(_root);
 }
 
 // Path: settings.prefLabels
@@ -1395,6 +1428,12 @@ class Translations$editor$menu$en {
 	/// en: 'Background line thickness'
 	String get lineThicknessDescription => 'Background line thickness';
 
+	/// en: 'Make this my default for new notes'
+	String get makeDefault => 'Make this my default for new notes';
+
+	/// en: 'New notes will start with this page design'
+	String get madeDefault => 'New notes will start with this page design';
+
 	/// en: 'Background image fit'
 	String get backgroundImageFit => 'Background image fit';
 
@@ -1548,6 +1587,33 @@ class Translations$sentry$consent$answers$en {
 
 	/// en: 'Ask me later'
 	String get later => 'Ask me later';
+}
+
+// Path: settings.newPages.colours
+class Translations$settings$newPages$colours$en {
+	Translations$settings$newPages$colours$en.internal(this._root);
+
+	final Translations _root; // ignore: unused_field
+
+	// Translations
+
+	/// en: 'White'
+	String get white => 'White';
+
+	/// en: 'Cream'
+	String get cream => 'Cream';
+
+	/// en: 'Soft grey'
+	String get softGrey => 'Soft grey';
+
+	/// en: 'Pale blue'
+	String get paleBlue => 'Pale blue';
+
+	/// en: 'Any colour…'
+	String get anyColour => 'Any colour…';
+
+	/// en: 'Your colour'
+	String get custom => 'Your colour';
 }
 
 // Path: settings.prefDescriptions.hideFingerDrawing

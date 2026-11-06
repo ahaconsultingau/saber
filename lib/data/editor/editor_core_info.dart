@@ -75,6 +75,10 @@ class EditorCoreInfo {
   /// Stores the current page index so that it can be restored when the file is reloaded.
   int? initialPageIndex;
 
+  /// Aha! copy: true for a note that didn't exist on disk yet (a new note),
+  /// so the editor can pick the starting pen from Settings › New pages.
+  var createdFresh = false;
+
   static final placeholder =
       EditorCoreInfo._(
         filePath: '',
@@ -101,11 +105,17 @@ class EditorCoreInfo {
   @visibleForTesting
   new({required this.filePath, this.readOnlyReason})
     : nextImageId = 0,
-      backgroundPattern = stows.lastBackgroundPattern.value,
-      lineHeight = stows.lastLineHeight.value,
-      lineThickness = stows.lastLineThickness.value,
+      // Aha! copy: a new note starts with the design in Settings › New pages.
+      backgroundPattern = stows.newNoteBackgroundPattern.value,
+      lineHeight = stows.newNoteLineHeight.value,
+      lineThickness = stows.newNoteLineThickness.value,
+      backgroundColor = stows.newNoteBackgroundColor.value == 0
+          ? null
+          : Color(stows.newNoteBackgroundColor.value),
       pages = [],
-      assetCache = AssetCache();
+      assetCache = AssetCache() {
+    createdFresh = true;
+  }
 
   new _({
     required this.filePath,

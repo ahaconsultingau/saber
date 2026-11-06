@@ -56,6 +56,7 @@ import 'package:saber/data/tools/table_lines.dart';
 import 'package:saber/i18n/strings.g.dart';
 import 'package:saber/pages/home/whiteboard.dart';
 import 'package:sbn/change.dart';
+import 'package:sbn/tool_id.dart';
 import 'package:super_clipboard/super_clipboard.dart';
 
 class const _PhotoInfo(final Uint8List bytes, final String extension);
@@ -222,6 +223,10 @@ class EditorState extends State<Editor> {
 
     for (int pageIndex = 0; pageIndex < coreInfo.pages.length; pageIndex++) {
       listenToQuillChanges(coreInfo.pages[pageIndex].quill, pageIndex);
+    }
+
+    if (coreInfo.createdFresh && !coreInfo.readOnly) {
+      _applyNewNoteStartingTool();
     }
 
     if (coreInfo.isEmpty) {
@@ -1907,6 +1912,21 @@ class EditorState extends State<Editor> {
             : null,
       ),
     );
+  }
+
+  /// Aha! copy: a new note starts with the pen chosen in Settings › New
+  /// pages (or the last-used pen when none is chosen).
+  void _applyNewNoteStartingTool() {
+    final name = stows.newNoteStartingTool.value;
+    final toolId = ToolId.values.where((t) => t.name == name).firstOrNull;
+    final Tool? tool = switch (toolId) {
+      ToolId.fountainPen => Pen.currentPen = Pen.fountainPen(),
+      ToolId.ballpointPen => Pen.currentPen = Pen.ballpointPen(),
+      ToolId.pencil => Pencil.currentPencil,
+      ToolId.highlighter => Highlighter.currentHighlighter,
+      _ => null,
+    };
+    if (tool != null) currentTool = tool;
   }
 
   var _leaving = false;

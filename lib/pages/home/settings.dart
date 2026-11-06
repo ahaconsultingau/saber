@@ -8,6 +8,7 @@ import 'package:go_router/go_router.dart';
 import 'package:material_ui/material_ui.dart';
 import 'package:saber/components/navbar/responsive_navbar.dart';
 import 'package:saber/components/settings/app_info.dart';
+import 'package:saber/components/settings/new_page_design.dart';
 import 'package:saber/components/settings/nextcloud_profile.dart';
 import 'package:saber/components/settings/settings_button.dart';
 import 'package:saber/components/settings/settings_color.dart';
@@ -451,6 +452,8 @@ class _SettingsPageState extends State<SettingsPage> {
                   pref: stows.twoFingerScrollOnly,
                 ),
 
+                SettingsSubtitle(subtitle: t.settings.prefCategories.newPages),
+                const NewPageDesignSettings(),
                 SettingsSubtitle(subtitle: t.settings.prefCategories.editor),
                 SettingsSelection(
                   title: t.settings.prefLabels.editorToolbarAlignment,

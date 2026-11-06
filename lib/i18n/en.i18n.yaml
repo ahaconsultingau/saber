@@ -97,8 +97,23 @@ settings:
     general: General
     writing: Writing
     editor: Editor
+    newPages: New pages
     performance: Performance
     advanced: Advanced
+  newPages:
+    lineStyle: Line style
+    pageColour: Page colour
+    startingPen: Starting pen
+    lastUsedPen: The pen I last used
+    preview: Preview
+    previewNote: Every new note starts like this. Existing notes keep their own design.
+    colours:
+      white: White
+      cream: Cream
+      softGrey: Soft grey
+      paleBlue: Pale blue
+      anyColour: Any colour…
+      custom: Your colour
   prefLabels:
     locale: Language
     appTheme: App theme
@@ -363,6 +378,8 @@ editor:
     lineHeightDescription: Also controls the text size for typed notes
     lineThickness: Line thickness
     lineThicknessDescription: Background line thickness
+    makeDefault: Make this my default for new notes
+    madeDefault: New notes will start with this page design
     backgroundImageFit: Background image fit
     backgroundPattern: Background pattern
     import: Import

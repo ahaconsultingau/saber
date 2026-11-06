@@ -317,6 +317,41 @@ class Stows {
         Colors.black.toARGB32(),
         volatile: !_isOnMainIsolate,
       );
+
+  /// Aha! copy: the page design every new note starts with
+  /// (Settings › New pages). Changing one note's design no longer changes
+  /// the next new note.
+  final newNoteBackgroundPattern = PlainStow(
+    'newNoteBackgroundPattern',
+    CanvasBackgroundPattern.none,
+    codec: const EnumCodec(CanvasBackgroundPattern.values),
+    volatile: !_isOnMainIsolate,
+  );
+  final newNoteLineHeight = PlainStow(
+    'newNoteLineHeight',
+    defaultLineHeight,
+    volatile: !_isOnMainIsolate,
+  );
+  final newNoteLineThickness = PlainStow(
+    'newNoteLineThickness',
+    defaultLineThickness,
+    volatile: !_isOnMainIsolate,
+  );
+
+  /// ARGB, or 0 for Saber's usual page colour.
+  final newNoteBackgroundColor = PlainStow(
+    'newNoteBackgroundColor',
+    0,
+    volatile: !_isOnMainIsolate,
+  );
+
+  /// A [ToolId] name, or '' to start with the pen you last used.
+  final newNoteStartingTool = PlainStow(
+    'newNoteStartingTool',
+    '',
+    volatile: !_isOnMainIsolate,
+  );
+
   final lastBackgroundPattern = PlainStow(
     'lastBackgroundPattern',
     CanvasBackgroundPattern.none,
