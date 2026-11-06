@@ -13,6 +13,7 @@ import 'package:saber/data/editor/page.dart';
 import 'package:saber/data/extensions/change_notifier_extensions.dart';
 import 'package:saber/data/extensions/matrix4_extensions.dart';
 import 'package:saber/data/prefs.dart';
+import 'package:saber/i18n/strings.g.dart';
 import 'package:saber/pages/editor/editor.dart';
 import 'package:vector_math/vector_math_64.dart';
 
@@ -418,10 +419,40 @@ class CanvasGestureDetectorState extends State<CanvasGestureDetector> {
         transformation;
   }
 
+  /// Aha! copy (pen guard): when the pen was last seen, hovering or touching.
+  DateTime? _lastStylusSeen;
+
+  /// Shows "Pen near · touch paused" briefly when a touch is ignored.
+  final _guardHintVisible = ValueNotifier(false);
+  Timer? _guardHintTimer;
+
+  /// Whether touch on the page should be ignored right now: the pen is near
+  /// or was lifted less than [stows.penGuardHoldMs] ago.
+  bool _shouldIgnoreTouch() {
+    if (!stows.penGuard.value) return false;
+    final seen = _lastStylusSeen;
+    if (seen == null) return false;
+    final ignore =
+        DateTime.now().difference(seen).inMilliseconds <
+        stows.penGuardHoldMs.value;
+    if (ignore) _showGuardHint();
+    return ignore;
+  }
+
+  void _showGuardHint() {
+    if (_guardHintVisible.value) return;
+    _guardHintVisible.value = true;
+    _guardHintTimer?.cancel();
+    _guardHintTimer = Timer(const Duration(milliseconds: 1200), () {
+      _guardHintVisible.value = false;
+    });
+  }
+
   void _listenerPointerEvent(PointerEvent event) {
     final isStylus =
         event.kind == PointerDeviceKind.stylus ||
         event.kind == PointerDeviceKind.invertedStylus;
+    if (isStylus) _lastStylusSeen = DateTime.now();
     if (isStylus && event is PointerDownEvent) {
       _detectStylusButton(event);
     }
@@ -455,6 +486,7 @@ class CanvasGestureDetectorState extends State<CanvasGestureDetector> {
 
   void _listenerPointerHoverEvent(PointerEvent event) {
     if (event.kind != .stylus && event.kind != .invertedStylus) return;
+    _lastStylusSeen = DateTime.now();
 
     // Apparently flutter synthesizes a hover event on pointer down,
     // so these are used to detect when hovering ends
@@ -477,6 +509,10 @@ class CanvasGestureDetectorState extends State<CanvasGestureDetector> {
   }
 
   void _listenerPointerUpEvent(PointerEvent event) {
+    if (event.kind == PointerDeviceKind.stylus ||
+        event.kind == PointerDeviceKind.invertedStylus) {
+      _lastStylusSeen = DateTime.now();
+    }
     widget.updatePointerData(event.kind, null);
     if (stylusButtonWasPressed) {
       stylusButtonWasPressed = false;
@@ -504,6 +540,8 @@ class CanvasGestureDetectorState extends State<CanvasGestureDetector> {
                   minScale: zoomLockedValue ?? CanvasGestureDetector.kMinScale,
                   maxScale: zoomLockedValue ?? CanvasGestureDetector.kMaxScale,
                   panEnabled: !singleFingerPanLock,
+                  twoFingerPanOnly: stows.twoFingerScrollOnly.value,
+                  shouldIgnoreTouch: _shouldIgnoreTouch,
                   panAxis: axisAlignedPanLock ? PanAxis.aligned : PanAxis.free,
 
                   // Smoother scrolling fling gesture than the default
@@ -535,6 +573,24 @@ class CanvasGestureDetectorState extends State<CanvasGestureDetector> {
                   },
                 );
               },
+            ),
+          ),
+        ),
+        Positioned(
+          top: 12,
+          left: 0,
+          right: 0,
+          child: IgnorePointer(
+            child: Center(
+              child: ValueListenableBuilder(
+                valueListenable: _guardHintVisible,
+                builder: (context, visible, child) => AnimatedOpacity(
+                  opacity: visible ? 1 : 0,
+                  duration: const Duration(milliseconds: 200),
+                  child: child,
+                ),
+                child: _PenGuardHint(),
+              ),
             ),
           ),
         ),
@@ -574,6 +630,8 @@ class CanvasGestureDetectorState extends State<CanvasGestureDetector> {
     widget._transformationController.removeListener(onTransformChanged);
     widget._transformationController.dispose();
     _removeKeybindings();
+    _guardHintTimer?.cancel();
+    _guardHintVisible.dispose();
     super.dispose();
   }
 
@@ -702,4 +760,36 @@ double _inverseLerp(num value, {required num min, required num max}) {
     'Value ($value) must be between $min and $max',
   );
   return (value - min) / (max - min);
+}
+
+/// The small pill shown while the pen guard is ignoring touch.
+class _PenGuardHint extends StatelessWidget {
+  @override
+  Widget build(BuildContext context) {
+    final colorScheme = ColorScheme.of(context);
+    return DecoratedBox(
+      decoration: BoxDecoration(
+        color: colorScheme.inverseSurface,
+        borderRadius: BorderRadius.circular(999),
+      ),
+      child: Padding(
+        padding: const .symmetric(horizontal: 12, vertical: 6),
+        child: Row(
+          mainAxisSize: .min,
+          spacing: 6,
+          children: [
+            Icon(Icons.edit, size: 14, color: colorScheme.onInverseSurface),
+            Text(
+              t.editor.penGuard.hint,
+              style: TextStyle(
+                color: colorScheme.onInverseSurface,
+                fontSize: 12,
+                fontWeight: FontWeight.w600,
+              ),
+            ),
+          ],
+        ),
+      ),
+    );
+  }
 }

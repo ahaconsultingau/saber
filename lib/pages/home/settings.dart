@@ -418,6 +418,38 @@ class _SettingsPageState extends State<SettingsPage> {
                     );
                   },
                 ),
+                SettingsSwitch(
+                  title: t.settings.prefLabels.penGuard,
+                  subtitle: t.settings.prefDescriptions.penGuard,
+                  icon: Icons.back_hand_outlined,
+                  pref: stows.penGuard,
+                ),
+                ValueListenableBuilder(
+                  valueListenable: stows.penGuard,
+                  builder: (context, penGuard, _) => Collapsible(
+                    collapsed: !penGuard,
+                    axis: CollapsibleAxis.vertical,
+                    child: SettingsSelection(
+                      title: t.settings.prefLabels.penGuardHold,
+                      subtitle: t.settings.prefDescriptions.penGuardHold,
+                      icon: Icons.timer_outlined,
+                      pref: stows.penGuardHoldMs,
+                      optionsWidth: 56,
+                      options: const [
+                        ToggleButtonsOption(500, Text('0.5')),
+                        ToggleButtonsOption(1000, Text('1')),
+                        ToggleButtonsOption(2000, Text('2')),
+                        ToggleButtonsOption(3000, Text('3')),
+                      ],
+                    ),
+                  ),
+                ),
+                SettingsSwitch(
+                  title: t.settings.prefLabels.twoFingerScrollOnly,
+                  subtitle: t.settings.prefDescriptions.twoFingerScrollOnly,
+                  icon: Icons.swipe_vertical_outlined,
+                  pref: stows.twoFingerScrollOnly,
+                ),
 
                 SettingsSubtitle(subtitle: t.settings.prefCategories.editor),
                 SettingsSelection(

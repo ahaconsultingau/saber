@@ -310,6 +310,7 @@ class Translations$editor$en {
 	late final Translations$editor$colors$en colors = Translations$editor$colors$en.internal(_root);
 	late final Translations$editor$imageOptions$en imageOptions = Translations$editor$imageOptions$en.internal(_root);
 	late final Translations$editor$selectionBar$en selectionBar = Translations$editor$selectionBar$en.internal(_root);
+	late final Translations$editor$penGuard$en penGuard = Translations$editor$penGuard$en.internal(_root);
 	late final Translations$editor$insertTable$en insertTable = Translations$editor$insertTable$en.internal(_root);
 	late final Translations$editor$convertToText$en convertToText = Translations$editor$convertToText$en.internal(_root);
 	late final Translations$editor$menu$en menu = Translations$editor$menu$en.internal(_root);
@@ -706,6 +707,15 @@ class Translations$settings$prefLabels$en {
 	/// en: 'Auto-disable finger drawing'
 	String get autoDisableFingerDrawingWhenStylusDetected => 'Auto-disable finger drawing';
 
+	/// en: 'Ignore touch while the pen is near'
+	String get penGuard => 'Ignore touch while the pen is near';
+
+	/// en: 'Keep ignoring touch after the pen lifts'
+	String get penGuardHold => 'Keep ignoring touch after the pen lifts';
+
+	/// en: 'Scroll with two fingers only'
+	String get twoFingerScrollOnly => 'Scroll with two fingers only';
+
 	/// en: 'Prompt you to rename new notes'
 	String get editorPromptRename => 'Prompt you to rename new notes';
 
@@ -764,6 +774,15 @@ class Translations$settings$prefDescriptions$en {
 
 	/// en: 'Turn off finger drawing when a stylus is detected'
 	String get autoDisableFingerDrawingWhenStylusDetected => 'Turn off finger drawing when a stylus is detected';
+
+	/// en: 'Stops your palm moving the page as you write'
+	String get penGuard => 'Stops your palm moving the page as you write';
+
+	/// en: 'In seconds, after the pen was last near the screen'
+	String get penGuardHold => 'In seconds, after the pen was last near the screen';
+
+	/// en: 'One finger or a sleeve won't move the page'
+	String get twoFingerScrollOnly => 'One finger or a sleeve won\'t move the page';
 
 	/// en: 'You can always rename notes later'
 	String get editorPromptRename => 'You can always rename notes later';
@@ -1264,6 +1283,18 @@ class Translations$editor$selectionBar$en {
 
 	/// en: 'Convert to text'
 	String get convertToText => 'Convert to text';
+}
+
+// Path: editor.penGuard
+class Translations$editor$penGuard$en {
+	Translations$editor$penGuard$en.internal(this._root);
+
+	final Translations _root; // ignore: unused_field
+
+	// Translations
+
+	/// en: 'Pen near · touch paused'
+	String get hint => 'Pen near · touch paused';
 }
 
 // Path: editor.insertTable

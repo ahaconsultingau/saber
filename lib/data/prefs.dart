@@ -209,6 +209,25 @@ class Stows {
     volatile: !_isOnMainIsolate,
   );
 
+  /// Aha! copy: ignore touch on the page while the pen is near or has just
+  /// lifted, so a resting palm doesn't move the page.
+  final penGuard = PlainStow('penGuard', true, volatile: !_isOnMainIsolate);
+
+  /// How long (ms) touch stays ignored after the pen was last seen.
+  final penGuardHoldMs = PlainStow(
+    'penGuardHoldMs',
+    1000,
+    volatile: !_isOnMainIsolate,
+  );
+
+  /// Aha! copy: one finger (or a sleeve) doesn't move the page; scroll and
+  /// zoom with two fingers.
+  final twoFingerScrollOnly = PlainStow(
+    'twoFingerScrollOnly',
+    true,
+    volatile: !_isOnMainIsolate,
+  );
+
   final recentColorsChronological = PlainStow(
     'recentColorsChronological',
     <String>[],
