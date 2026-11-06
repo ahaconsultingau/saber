@@ -122,6 +122,22 @@ jobs:
           repo_token: ${{ secrets.GITHUB_TOKEN }}
           file: output/${{ steps.rename_apk.outputs.apkName }}
 
+      - name: Publish to the aha-latest release (Aha! copy)
+        # One-tap download on the tablet: the latest build replaces the
+        # file on https://github.com/<owner>/saber/releases/tag/aha-latest
+        uses: svenstaro/upload-release-action@v2
+        if: ${{ github.repository != 'saber-notes/saber' && github.event_name != 'pull_request' }}
+        with:
+          repo_token: ${{ secrets.GITHUB_TOKEN }}
+          file: output/${{ steps.rename_apk.outputs.apkName }}
+          asset_name: Saber-Aha.apk
+          tag: aha-latest
+          target_commit: ${{ github.sha }}
+          release_name: Saber Aha (latest build)
+          body: Tap Saber-Aha.apk below to download it on the tablet, then open it to install.
+          overwrite: true
+          make_latest: true
+
       - name: Build aab
         if: ${{ matrix.foss == false && github.repository == 'saber-notes/saber' }}
         run: |
