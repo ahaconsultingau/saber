@@ -1,5 +1,6 @@
 import 'dart:async';
 
+import 'package:logging/logging.dart';
 import 'package:material_ui/material_ui.dart';
 import 'package:saber/data/handwriting/handwriting_recognizer.dart';
 import 'package:saber/i18n/strings.g.dart';
@@ -15,6 +16,8 @@ class HandwritingPad extends StatefulWidget {
   final ValueChanged<String> onText;
   final double height;
 
+  static final log = Logger('HandwritingPad');
+
   /// How long after the pen lifts the ink is read.
   static const readDelay = Duration(milliseconds: 800);
 
@@ -22,7 +25,7 @@ class HandwritingPad extends StatefulWidget {
   State<HandwritingPad> createState() => _HandwritingPadState();
 }
 
-enum _PadStatus { idle, downloading, reading, failed }
+enum _PadStatus { idle, downloading, reading, failed, noText }
 
 class _HandwritingPadState extends State<HandwritingPad> {
   final strokes = <List<Offset>>[];
@@ -45,7 +48,10 @@ class _HandwritingPadState extends State<HandwritingPad> {
     setState(() => strokes.last.add(e.localPosition));
   }
 
-  void _up(PointerUpEvent e) {
+  /// Also on a cancelled stroke: Android can cancel a pen stroke (e.g.
+  /// near a text box), and the ink drawn so far should still be read.
+  void _up(PointerEvent e) {
+    if (strokes.isEmpty) return;
     _readTimer?.cancel();
     _readTimer = Timer(HandwritingPad.readDelay, _read);
   }
@@ -66,9 +72,13 @@ class _HandwritingPadState extends State<HandwritingPad> {
           .replaceAll('\n', ' ')
           .trim();
       if (!mounted) return;
-      setState(() => status = _PadStatus.idle);
+      // Say so when nothing was recognised, rather than doing nothing.
+      setState(
+        () => status = text.isEmpty ? _PadStatus.noText : _PadStatus.idle,
+      );
       if (text.isNotEmpty) widget.onText(text);
-    } catch (_) {
+    } catch (e, st) {
+      HandwritingPad.log.warning('Could not read the handwriting: $e', e, st);
       if (mounted) setState(() => status = _PadStatus.failed);
     }
   }
@@ -91,6 +101,7 @@ class _HandwritingPadState extends State<HandwritingPad> {
       _PadStatus.downloading => strings.downloading,
       _PadStatus.reading => strings.reading,
       _PadStatus.failed => strings.failed,
+      _PadStatus.noText => strings.noText,
     };
 
     return Column(
@@ -123,6 +134,7 @@ class _HandwritingPadState extends State<HandwritingPad> {
                       onPointerDown: _down,
                       onPointerMove: _move,
                       onPointerUp: _up,
+                      onPointerCancel: _up,
                       child: CustomPaint(
                         painter: _InkPainter(strokes, colorScheme.onSurface),
                       ),
@@ -147,7 +159,7 @@ class _HandwritingPadState extends State<HandwritingPad> {
           Text(
             note,
             style: TextTheme.of(context).bodySmall?.copyWith(
-              color: status == _PadStatus.failed
+              color: status == _PadStatus.failed || status == _PadStatus.noText
                   ? colorScheme.error
                   : colorScheme.onSurfaceVariant,
             ),

@@ -1450,6 +1450,9 @@ class Translations$editor$handwritingPad$en {
 	/// en: 'Couldn't read that. Try again, or type the name.'
 	String get failed => 'Couldn\'t read that. Try again, or type the name.';
 
+	/// en: 'No words found. Try writing a little larger, or type the name.'
+	String get noText => 'No words found. Try writing a little larger, or type the name.';
+
 	/// en: 'Clear'
 	String get clear => 'Clear';
 }

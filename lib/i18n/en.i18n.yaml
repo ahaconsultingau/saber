@@ -384,6 +384,7 @@ editor:
     reading: Reading your handwriting…
     downloading: Downloading the handwriting pack (once; needs internet)…
     failed: Couldn't read that. Try again, or type the name.
+    noText: No words found. Try writing a little larger, or type the name.
     clear: Clear
   saveState:
     saved: Saved

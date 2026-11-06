@@ -152,4 +152,31 @@ void main() {
     await writeInPad(tester);
     expect(nameIn(tester, 'bookmarkName'), 'Bayside Council');
   });
+
+  testWidgets('A stroke Android cancels is still read', (tester) async {
+    await open(tester, const NewNoteDialog(folders: ['/']), (_) {});
+    final pad = tester.getCenter(find.byKey(const ValueKey('handwritingPad')));
+    final pen = await tester.startGesture(
+      pad - const Offset(60, 0),
+      kind: PointerDeviceKind.stylus,
+    );
+    for (var i = 0; i < 6; i++) {
+      await pen.moveBy(const Offset(20, 4));
+      await tester.pump(const Duration(milliseconds: 16));
+    }
+    await pen.cancel();
+    await tester.pump(
+      HandwritingPad.readDelay + const Duration(milliseconds: 50),
+    );
+    await tester.pumpAndSettle();
+    expect(nameIn(tester, 'newNoteName'), 'Bayside Council');
+  });
+
+  testWidgets('When no words are found, it says so', (tester) async {
+    HandwritingRecognizer.debugRecognizeInk = (_) async => '';
+    await open(tester, const NewNoteDialog(folders: ['/']), (_) {});
+    await writeInPad(tester);
+    expect(find.text(t.editor.handwritingPad.noText), findsOneWidget);
+    expect(nameIn(tester, 'newNoteName'), '');
+  });
 }
