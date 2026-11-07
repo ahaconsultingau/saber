@@ -27,12 +27,22 @@ class ColorBar extends StatefulWidget {
   final bool isHighlighter;
 
   /// Aha! copy: the six colours shown for pens (or the highlighter).
-  static List<Color> slotsFor({required bool highlighter}) => [
-    for (final s
-        in (highlighter ? stows.highlighterColourSlots : stows.penColourSlots)
-            .value)
-      Color(int.parse(s)),
-  ];
+  /// A stored colour that can't be read falls back to the starting one.
+  static List<Color> slotsFor({required bool highlighter}) {
+    final stored =
+        (highlighter ? stows.highlighterColourSlots : stows.penColourSlots)
+            .value;
+    final defaults = highlighter
+        ? Stows.defaultHighlighterColourSlots
+        : Stows.defaultPenColourSlots;
+    return [
+      for (var i = 0; i < defaults.length; i++)
+        Color(
+          (i < stored.length ? int.tryParse(stored[i]) : null) ??
+              int.parse(defaults[i]),
+        ),
+    ];
+  }
 
   /// Aha! copy: replaces colour [index] of the pens' (or highlighter's) six.
   static void setSlot(int index, Color color, {required bool highlighter}) {

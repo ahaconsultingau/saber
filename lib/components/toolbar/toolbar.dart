@@ -55,9 +55,14 @@ class Toolbar extends StatefulWidget {
     required this.exportAsSba,
     required this.exportAsPdf,
     required this.exportAsPng,
+    this.sidePanelWidth = 0,
   });
 
   final bool readOnly;
+
+  /// Aha! copy: the width of the Pages or Bookmarks panel open on the
+  /// right, which the colour bar keeps clear of.
+  final double sidePanelWidth;
 
   final ValueChanged<Tool> setTool;
   final Tool currentTool;
@@ -109,10 +114,21 @@ class _ToolbarState extends State<Toolbar> {
     return box.localToGlobal(Offset.zero, ancestor: overlay) & box.size;
   }
 
+  /// Where this toolbar is, kept up to date as it grows or shrinks (its
+  /// option rows open and close), so the colour bar never covers it.
+  final _toolbarRectNotifier = ValueNotifier<Rect?>(null);
+
+  void _measureToolbar() {
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      if (mounted) _toolbarRectNotifier.value = _toolbarRect();
+    });
+  }
+
   void _syncColourPortal() {
     // Aha! copy: remember whether the bar is open, for the next note too.
     stows.colourBarOpen.value = showColorOptions.value;
     if (showColorOptions.value) {
+      _measureToolbar();
       _colourPortal.show();
     } else {
       _colourPortal.hide();
@@ -294,14 +310,18 @@ class _ToolbarState extends State<Toolbar> {
       // you write and pick colours, until the colour circle is tapped again.
       OverlayPortal(
         controller: _colourPortal,
-        overlayChildBuilder: (_) => _ColourColumn(
-          toolbarRect: _toolbarRect(),
-          colourBar: (axis) => ColorBar(
-            axis: axis,
-            setColor: widget.setColor,
-            currentColor: currentColor,
-            invert: invert,
-            isHighlighter: widget.currentTool is Highlighter,
+        overlayChildBuilder: (_) => ValueListenableBuilder(
+          valueListenable: _toolbarRectNotifier,
+          builder: (_, toolbarRect, _) => _ColourColumn(
+            toolbarRect: toolbarRect,
+            sidePanelWidth: widget.sidePanelWidth,
+            colourBar: (axis) => ColorBar(
+              axis: axis,
+              setColor: widget.setColor,
+              currentColor: currentColor,
+              invert: invert,
+              isHighlighter: widget.currentTool is Highlighter,
+            ),
           ),
         ),
         child: const SizedBox.shrink(),
@@ -614,24 +634,33 @@ class _ToolbarState extends State<Toolbar> {
       ),
     ];
 
-    return Flex(
-      direction: isToolbarVertical ? Axis.horizontal : Axis.vertical,
-      textDirection: switch (stows.editorToolbarAlignment.value) {
-        AxisDirection.left => .rtl,
-        AxisDirection.right => .ltr,
-        _ => null,
+    return NotificationListener<SizeChangedLayoutNotification>(
+      onNotification: (_) {
+        _measureToolbar();
+        return true;
       },
-      verticalDirection: switch (stows.editorToolbarAlignment.value) {
-        AxisDirection.down => VerticalDirection.down,
-        AxisDirection.up => VerticalDirection.up,
-        _ => VerticalDirection.down,
-      },
-      children: bars,
+      child: SizeChangedLayoutNotifier(
+        child: Flex(
+          direction: isToolbarVertical ? Axis.horizontal : Axis.vertical,
+          textDirection: switch (stows.editorToolbarAlignment.value) {
+            AxisDirection.left => .rtl,
+            AxisDirection.right => .ltr,
+            _ => null,
+          },
+          verticalDirection: switch (stows.editorToolbarAlignment.value) {
+            AxisDirection.down => VerticalDirection.down,
+            AxisDirection.up => VerticalDirection.up,
+            _ => VerticalDirection.down,
+          },
+          children: bars,
+        ),
+      ),
     );
   }
 
   @override
   void dispose() {
+    _toolbarRectNotifier.dispose();
     DynamicMaterialApp.removeFullscreenListener(_setState);
     DynamicMaterialApp.setFullscreen(false, updateSystem: true);
     showColorOptions.removeListener(_syncColourPortal);
@@ -649,7 +678,14 @@ enum ToolOptions { hide, pen, highlighter, pencil, select }
 /// to the nearest edge when let go. Nothing else is covered: the page around
 /// it can still be written on.
 class _ColourColumn extends StatefulWidget {
-  const new({required this.toolbarRect, required this.colourBar});
+  const new({
+    required this.toolbarRect,
+    required this.colourBar,
+    this.sidePanelWidth = 0,
+  });
+
+  /// The Pages or Bookmarks panel open on the right, to keep clear of.
+  final double sidePanelWidth;
 
   /// Where the editor's toolbar is on screen, so the bar doesn't cover it.
   final Rect? toolbarRect;
@@ -759,7 +795,7 @@ class _ColourColumnState extends State<_ColourColumn> {
     var top = media.padding.top + kToolbarHeight + gap;
     var bottom = media.padding.bottom + gap;
     var left = media.padding.left + gap;
-    var right = media.padding.right + gap;
+    var right = media.padding.right + gap + widget.sidePanelWidth;
     if (widget.toolbarRect case final toolbar?) {
       if (toolbar.width >= toolbar.height) {
         if (toolbar.center.dy > size.height / 2) {

@@ -115,8 +115,11 @@ class EditorCoreInfo {
   new({required this.filePath, this.readOnlyReason})
     : nextImageId = 0,
       // Aha! copy: a new note starts with the design in Settings › New pages.
+      // The New note sheet's choice is only for a real new note, not the
+      // stand-in for a note that couldn't be read.
       backgroundPattern =
-          _takeNextNewNotePattern() ?? stows.newNoteBackgroundPattern.value,
+          (readOnlyReason == null ? _takeNextNewNotePattern() : null) ??
+          stows.newNoteBackgroundPattern.value,
       lineHeight = stows.newNoteLineHeight.value,
       lineThickness = stows.newNoteLineThickness.value,
       backgroundColor = stows.newNoteBackgroundColor.value == 0
@@ -124,7 +127,7 @@ class EditorCoreInfo {
           : Color(stows.newNoteBackgroundColor.value),
       pages = [],
       assetCache = AssetCache() {
-    createdFresh = true;
+    createdFresh = readOnlyReason == null;
   }
 
   new _({

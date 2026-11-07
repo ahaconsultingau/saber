@@ -917,6 +917,9 @@ class _InteractiveCanvasViewerState extends State<InteractiveCanvasViewer>
   void _onScaleEnd(ScaleEndDetails details) {
     if (_ignoringGesture) {
       _ignoringGesture = false;
+      // Still report the end, so the editor forgets the pointers it saw
+      // (otherwise the next pen stroke was taken for a zoom and dropped).
+      widget.onInteractionEnd?.call(details);
       return;
     }
     widget.onInteractionEnd?.call(details);

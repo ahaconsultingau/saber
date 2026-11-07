@@ -52,16 +52,22 @@ abstract final class NoteBookmarks {
   static List<NoteBookmark> decode(String json, List<EditorPage> pages) {
     final map = jsonDecode(json) as Map<String, dynamic>;
     final list = map['bookmarks'] as List<dynamic>? ?? const [];
+    // Read each entry on its own: one damaged entry (e.g. from a sync
+    // merge) is skipped rather than losing every bookmark.
     return [
-      for (final item in list.cast<Map<String, dynamic>>())
-        if (item['page'] case final int page
-            when page >= 0 && page < pages.length)
+      for (final item in list)
+        if (item is Map &&
+            item['page'] is int &&
+            (item['page'] as int) >= 0 &&
+            (item['page'] as int) < pages.length)
           NoteBookmark(
-            name: item['name'] as String? ?? '',
+            name: item['name'] is String ? item['name'] as String : '',
             date:
-                DateTime.tryParse(item['date'] as String? ?? '') ??
+                DateTime.tryParse(
+                  item['date'] is String ? item['date'] as String : '',
+                ) ??
                 DateTime.now(),
-            page: pages[page],
+            page: pages[item['page'] as int],
           ),
     ];
   }

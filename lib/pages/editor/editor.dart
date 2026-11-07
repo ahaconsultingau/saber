@@ -10,6 +10,7 @@ import 'package:flutter/foundation.dart' show kDebugMode;
 import 'package:flutter/gestures.dart';
 import 'package:flutter/services.dart';
 import 'package:flutter_quill/flutter_quill.dart' as flutter_quill;
+import 'package:go_router/go_router.dart';
 import 'package:keybinder/keybinder.dart';
 import 'package:logging/logging.dart';
 import 'package:material_ui/material_ui.dart';
@@ -48,6 +49,7 @@ import 'package:saber/data/file_manager/file_manager.dart';
 import 'package:saber/data/handwriting/handwriting_recognizer.dart';
 import 'package:saber/data/nextcloud/saber_syncer.dart';
 import 'package:saber/data/prefs.dart';
+import 'package:saber/data/routes.dart';
 import 'package:saber/data/tools/_tool.dart';
 import 'package:saber/data/tools/eraser.dart';
 import 'package:saber/data/tools/fill.dart';
@@ -1191,11 +1193,12 @@ class EditorState extends State<Editor> {
               ),
         FileManager.removeUnusedAssets(filePath, numAssets: assets.length),
       ]);
+      // Aha! copy: page numbers may have shifted (pages added, moved or
+      // deleted), so rewrite the bookmarks with the note, before it
+      // counts as saved (back leaves as soon as it does).
+      if (bookmarks.isNotEmpty) await _saveBookmarks();
       savingState.value = .saved;
       history.markLastChangeAsSaved();
-      // Aha! copy: page numbers may have shifted (pages added, moved or
-      // deleted), so rewrite the bookmarks with the note.
-      if (bookmarks.isNotEmpty) await _saveBookmarks();
     } catch (e, st) {
       log.severe('Failed to save file: $e', e, st);
       savingState.value = .waitingToSave;
@@ -1673,6 +1676,10 @@ class EditorState extends State<Editor> {
         bottom: stows.editorToolbarAlignment.value != AxisDirection.up,
         child: Toolbar(
           readOnly: coreInfo.readOnly,
+          // The colour bar keeps clear of the Pages or Bookmarks panel.
+          sidePanelWidth: showPages || showBookmarks
+              ? FloatingSidePanel.widthFor(MediaQuery.sizeOf(context).width)
+              : 0,
           setTool: (tool) {
             if (tool is Eraser && currentTool is Eraser) {
               // setTool(Eraser) is a special case to toggle the eraser on/off
@@ -1969,7 +1976,7 @@ class EditorState extends State<Editor> {
                       ),
                 leading: SaveIndicator(
                   savingState: savingState,
-                  triggerSave: saveToFile,
+                  onBack: _saveThenLeave,
                 ),
                 actions: [
                   _SaveStateChip(savingState: savingState),
@@ -2095,6 +2102,8 @@ class EditorState extends State<Editor> {
 
   /// Names and dates a new bookmark on [pageIndex], then adds it.
   Future<bool> _addBookmark(int pageIndex, {required String name}) async {
+    // A read-only note can't be changed, so its bookmarks can't be saved.
+    if (coreInfo.readOnly) return false;
     final result = await showDialog<BookmarkDialogResult>(
       context: context,
       builder: (context) => BookmarkDialog(
@@ -2143,6 +2152,7 @@ class EditorState extends State<Editor> {
   }
 
   Future<void> _editBookmark(NoteBookmark bookmark) async {
+    if (coreInfo.readOnly) return;
     final result = await showDialog<BookmarkDialogResult>(
       context: context,
       builder: (context) => BookmarkDialog(
@@ -2189,18 +2199,38 @@ class EditorState extends State<Editor> {
     _leaving = true;
     try {
       if (savingState.value == .waitingToSave) await saveToFile();
-      while (mounted && savingState.value == .saving) {
-        await Future.delayed(const Duration(milliseconds: 50));
-      }
+      await _untilNotSaving();
       if (!mounted) return;
-      if (savingState.value != .saved)
+      if (savingState.value != .saved) {
         return snackBarNeedsToSaveBeforeExiting();
-      // Navigator.pop, not maybePop: the save is done, so leave even if
-      // PopScope hasn't caught up with the new saving state yet.
-      Navigator.of(context).pop();
+      }
+      final navigator = Navigator.of(context);
+      if (navigator.canPop()) {
+        // pop, not maybePop: the save is done, so leave even if PopScope
+        // hasn't caught up with the new saving state yet.
+        navigator.pop();
+      } else {
+        // Nothing to go back to (opened directly): go to Recent notes.
+        context.go(HomeRoutes.routes[0].path);
+      }
     } finally {
       _leaving = false;
     }
+  }
+
+  /// Completes once no save is in progress (rather than checking every few
+  /// milliseconds).
+  Future<void> _untilNotSaving() {
+    if (savingState.value != .saving) return Future.value();
+    final done = Completer<void>();
+    void check() {
+      if (savingState.value == .saving || done.isCompleted) return;
+      savingState.removeListener(check);
+      done.complete();
+    }
+
+    savingState.addListener(check);
+    return done.future;
   }
 
   void snackBarNeedsToSaveBeforeExiting() {
