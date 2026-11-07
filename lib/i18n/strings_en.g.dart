@@ -308,6 +308,7 @@ class Translations$editor$en {
 	// Translations
 	late final Translations$editor$toolbar$en toolbar = Translations$editor$toolbar$en.internal(_root);
 	late final Translations$editor$pens$en pens = Translations$editor$pens$en.internal(_root);
+	late final Translations$editor$fill$en fill = Translations$editor$fill$en.internal(_root);
 	late final Translations$editor$penOptions$en penOptions = Translations$editor$penOptions$en.internal(_root);
 	late final Translations$editor$colors$en colors = Translations$editor$colors$en.internal(_root);
 	late final Translations$editor$imageOptions$en imageOptions = Translations$editor$imageOptions$en.internal(_root);
@@ -1222,6 +1223,24 @@ class Translations$editor$pens$en {
 
 	/// en: 'Laser pointer'
 	String get laserPointer => 'Laser pointer';
+
+	/// en: 'Fill (tap inside a shape)'
+	String get fill => 'Fill (tap inside a shape)';
+}
+
+// Path: editor.fill
+class Translations$editor$fill$en {
+	Translations$editor$fill$en.internal(this._root);
+
+	final Translations _root; // ignore: unused_field
+
+	// Translations
+
+	/// en: 'Tap inside the shape, not on its outline.'
+	String get onLine => 'Tap inside the shape, not on its outline.';
+
+	/// en: 'That shape isn't closed. Close the gap and try again.'
+	String get open => 'That shape isn\'t closed. Close the gap and try again.';
 }
 
 // Path: editor.penOptions

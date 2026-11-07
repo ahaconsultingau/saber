@@ -322,6 +322,10 @@ editor:
     pencil: Pencil
     shapePen: Shape pen
     laserPointer: Laser pointer
+    fill: Fill (tap inside a shape)
+  fill:
+    onLine: Tap inside the shape, not on its outline.
+    open: That shape isn't closed. Close the gap and try again.
   penOptions:
     size: Size
   colors:

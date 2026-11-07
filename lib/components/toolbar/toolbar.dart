@@ -23,6 +23,7 @@ import 'package:saber/data/extensions/color_extensions.dart';
 import 'package:saber/data/prefs.dart';
 import 'package:saber/data/tools/_tool.dart';
 import 'package:saber/data/tools/eraser.dart';
+import 'package:saber/data/tools/fill.dart';
 import 'package:saber/data/tools/highlighter.dart';
 import 'package:saber/data/tools/laser_pointer.dart';
 import 'package:saber/data/tools/pen.dart';
@@ -222,6 +223,7 @@ class _ToolbarState extends State<Toolbar> {
         : Toolbar._buttonPaddingHorizontal;
 
     final currentColor = switch (widget.currentTool) {
+      final FillTool fill => fill.color,
       final Pen pen => pen.color,
       final Select select => select.getDominantStrokeColor(),
       _ => null,
@@ -417,6 +419,20 @@ class _ToolbarState extends State<Toolbar> {
                 },
                 padding: buttonPadding,
                 child: const FaIcon(Highlighter.highlighterIcon, size: 16),
+              ),
+              // Aha! copy: the paint bucket; the colour bar opens with it.
+              ToolbarIconButton(
+                key: const ValueKey('fillTool'),
+                tooltip: t.editor.pens.fill,
+                selected: widget.currentTool is FillTool,
+                enabled: !widget.readOnly,
+                onPressed: () {
+                  toolOptionsType.value = .hide;
+                  widget.setTool(FillTool.currentFill);
+                  showColorOptions.value = true;
+                },
+                padding: buttonPadding,
+                child: const Icon(Icons.format_color_fill, size: 20),
               ),
               ValueListenableBuilder(
                 valueListenable: showColorOptions,

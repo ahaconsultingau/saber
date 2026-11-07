@@ -50,6 +50,7 @@ import 'package:saber/data/nextcloud/saber_syncer.dart';
 import 'package:saber/data/prefs.dart';
 import 'package:saber/data/tools/_tool.dart';
 import 'package:saber/data/tools/eraser.dart';
+import 'package:saber/data/tools/fill.dart';
 import 'package:saber/data/tools/highlighter.dart';
 import 'package:saber/data/tools/laser_pointer.dart';
 import 'package:saber/data/tools/pen.dart';
@@ -168,7 +169,8 @@ class EditorState extends State<Editor> {
   set currentTool(Tool tool) {
     _currentTool = tool;
     if (tool is! Eraser) _lastNonEraserTool = tool;
-    stows.lastTool.value = tool.toolId;
+    // Aha! copy: the paint bucket isn't remembered as the last pen.
+    if (tool is! FillTool) stows.lastTool.value = tool.toolId;
   }
 
   ValueNotifier<SavingState> savingState = ValueNotifier(SavingState.saved);
@@ -581,6 +583,8 @@ class EditorState extends State<Editor> {
       }
     } else if (currentTool is LaserPointer) {
       (currentTool as LaserPointer).onDragStart(position, page, dragPageIndex!);
+    } else if (currentTool is FillTool) {
+      _fillAt(position, dragPageIndex!);
     }
 
     previousPosition = position;
@@ -927,6 +931,50 @@ class EditorState extends State<Editor> {
       }
     }
     setState(() {});
+  }
+
+  /// Aha! copy: the paint bucket. Fills the closed shape around [position]
+  /// on page [pageIndex] with the fill colour, under the ink; filling the
+  /// same shape again replaces the colour.
+  Future<void> _fillAt(Offset position, int pageIndex) async {
+    if (coreInfo.readOnly || pageIndex >= coreInfo.pages.length) return;
+    final page = coreInfo.pages[pageIndex];
+    final result = await FillTool.fill(
+      page: page,
+      pageIndex: pageIndex,
+      tap: position,
+      color: FillTool.currentFill.color,
+    );
+    if (!mounted) return;
+    switch (result.outcome) {
+      case FillOutcome.filled:
+        setState(() {
+          if (result.replaced.isNotEmpty) {
+            page.strokes.removeWhere(result.replaced.toSet().contains);
+            history.recordChange(
+              HistoricDelete(strokes: result.replaced, images: const []),
+            );
+          }
+          for (final stroke in result.strokes) {
+            page.insertStroke(stroke);
+          }
+          history.recordChange(
+            HistoricAdd(strokes: result.strokes, images: const []),
+          );
+          page.redrawStrokes();
+        });
+        autosaveAfterDelay();
+      case FillOutcome.onLine:
+        _fillMessage(t.editor.fill.onLine);
+      case FillOutcome.open:
+        _fillMessage(t.editor.fill.open);
+    }
+  }
+
+  void _fillMessage(String message) {
+    ScaffoldMessenger.of(context)
+      ..hideCurrentSnackBar()
+      ..showSnackBar(SnackBar(content: Text(message)));
   }
 
   /// Asks for a size, then draws a table on the current page as straight
@@ -1721,6 +1769,8 @@ class EditorState extends State<Editor> {
                 (currentTool as Highlighter).color = color.withAlpha(
                   Highlighter.alpha,
                 );
+              } else if (currentTool is FillTool) {
+                (currentTool as FillTool).color = color.withAlpha(255);
               } else if (currentTool is Pen) {
                 (currentTool as Pen).color = color;
               } else if (currentTool is Select) {
