@@ -73,36 +73,44 @@ abstract final class HandwritingRecognizer {
     return _recognizeLines(InkLines.build(strokes));
   }
 
+  /// One recognizer, kept for the life of the app. The Android side of the
+  /// ML Kit plugin never answers "close", so closing (and waiting for it)
+  /// after each read left every read stuck on "Reading…".
+  static mlkit.DigitalInkRecognizer? _recognizer;
+
+  /// How long one line may take before it counts as failed.
+  static const _lineTimeout = Duration(seconds: 20);
+
   static Future<String> _recognizeLines(
     List<List<List<InkPoint>>> lines,
   ) async {
-    final recognizer = mlkit.DigitalInkRecognizer(languageCode: languageTag);
-    try {
-      final text = <String>[];
-      for (final line in lines) {
-        final ink = mlkit.Ink()
-          ..strokes = [
-            for (final stroke in line)
-              mlkit.Stroke()
-                ..points = [
-                  for (final p in stroke)
-                    mlkit.StrokePoint(x: p.x, y: p.y, t: p.t),
-                ],
-          ];
-        final candidates = await recognizer.recognize(
-          ink,
-          context: mlkit.DigitalInkRecognitionContext(
-            // The end of the previous line helps with words split
-            // across lines and with capitalisation.
-            preContext: text.isEmpty ? null : _tail(text.last),
-          ),
-        );
-        if (candidates.isNotEmpty) text.add(candidates.first.text);
-      }
-      return text.join('\n');
-    } finally {
-      await recognizer.close();
+    final recognizer = _recognizer ??= mlkit.DigitalInkRecognizer(
+      languageCode: languageTag,
+    );
+    final text = <String>[];
+    for (final line in lines) {
+      final ink = mlkit.Ink()
+        ..strokes = [
+          for (final stroke in line)
+            mlkit.Stroke()
+              ..points = [
+                for (final p in stroke)
+                  mlkit.StrokePoint(x: p.x, y: p.y, t: p.t),
+              ],
+        ];
+      final candidates = await recognizer
+          .recognize(
+            ink,
+            context: mlkit.DigitalInkRecognitionContext(
+              // The end of the previous line helps with words split
+              // across lines and with capitalisation.
+              preContext: text.isEmpty ? null : _tail(text.last),
+            ),
+          )
+          .timeout(_lineTimeout);
+      if (candidates.isNotEmpty) text.add(candidates.first.text);
     }
+    return text.join('\n');
   }
 
   static String _tail(String s) =>
