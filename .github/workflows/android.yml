@@ -10,6 +10,13 @@ on:
       - "**"
     paths:
       - .github/workflows/android.yml
+      # Aha! copy: build (and publish an update) whenever the app changes.
+      - lib/**
+      - android/**
+      - assets/**
+      - packages/**
+      - pubspec.yaml
+      - pubspec.lock
 
 jobs:
   build-android:
@@ -17,7 +24,9 @@ jobs:
     strategy:
       fail-fast: false
       matrix:
-        foss: [false, true]
+        # Aha! copy: only the regular build. The FOSS build strips Google
+        # libraries, including the handwriting recognition this copy adds.
+        foss: ${{ github.repository == 'saber-notes/saber' && fromJSON('[false, true]') || fromJSON('[false]') }}
     runs-on: ubuntu-latest
     permissions:
       contents: write
@@ -84,7 +93,18 @@ jobs:
         if: matrix.foss
 
       - name: Build apk
-        run: flutter build apk
+        # Aha! copy: no prompts to install the upstream Saber, which would
+        # be a separate app without this copy's additions.
+        run: |
+          if [ "${{ github.repository }}" = "saber-notes/saber" ]; then
+            flutter build apk
+          else
+            # Each build gets its own version (e.g. 1.37.1-aha.3) matching
+            # its release, so Obtainium can tell when there's an update.
+            buildName=$(grep -oP "(?<=buildName = ').*(?=')" lib/data/version.dart)
+            flutter build apk --dart-define=UPDATE_CHECK="false" \
+              --build-name="${buildName}-aha.${{ github.run_number }}"
+          fi
 
       - name: Rename apk
         id: rename_apk
@@ -96,6 +116,7 @@ jobs:
             apkName="Saber_v${buildName}.apk"
           fi
           echo "apkName=$apkName" >> $GITHUB_OUTPUT
+          echo "buildName=$buildName" >> $GITHUB_OUTPUT
 
           mkdir -p output
           mv build/app/outputs/flutter-apk/app-release.apk output/$apkName
@@ -113,8 +134,32 @@ jobs:
           repo_token: ${{ secrets.GITHUB_TOKEN }}
           file: output/${{ steps.rename_apk.outputs.apkName }}
 
+      - name: Remove the old aha-latest release (Aha! copy)
+        # Replaced by numbered releases below. Safe to run when it's gone.
+        if: ${{ github.repository != 'saber-notes/saber' && github.event_name != 'pull_request' }}
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: gh release delete aha-latest --cleanup-tag --yes -R "${{ github.repository }}" || true
+
+      - name: Publish a numbered release (Aha! copy)
+        # Each build is its own release, e.g. v1.37.1-aha.3, marked latest.
+        # Obtainium on the tablet watches these and offers the update;
+        # https://github.com/<owner>/saber/releases/latest always opens the newest.
+        uses: svenstaro/upload-release-action@v2
+        if: ${{ github.repository != 'saber-notes/saber' && github.event_name != 'pull_request' }}
+        with:
+          repo_token: ${{ secrets.GITHUB_TOKEN }}
+          file: output/${{ steps.rename_apk.outputs.apkName }}
+          asset_name: Saber-Aha.apk
+          tag: v${{ steps.rename_apk.outputs.buildName }}-aha.${{ github.run_number }}
+          target_commit: ${{ github.sha }}
+          release_name: Saber Aha ${{ steps.rename_apk.outputs.buildName }} (build ${{ github.run_number }})
+          body: Tap Saber-Aha.apk below to download it on the tablet, then open it to install. Obtainium picks this up automatically.
+          overwrite: false
+          make_latest: true
+
       - name: Build aab
-        if: ${{ matrix.foss == false }}
+        if: ${{ matrix.foss == false && github.repository == 'saber-notes/saber' }}
         run: |
           flutter build appbundle \
             --dart-define=FLAVOR="Google Play" \
@@ -125,7 +170,7 @@ jobs:
           mv build/app/outputs/bundle/release/app-release.aab output/Saber.aab
 
       - name: Upload artifact
-        if: ${{ matrix.foss == false }}
+        if: ${{ matrix.foss == false && github.repository == 'saber-notes/saber' }}
         uses: actions/upload-artifact@v7
         with:
           name: Saber-Android-PlayStore
@@ -135,7 +180,7 @@ jobs:
     name: Upload to Play Store
     runs-on: ubuntu-latest
     needs: build-android
-    if: ${{ startsWith(github.ref, 'refs/tags/') }}
+    if: ${{ startsWith(github.ref, 'refs/tags/') && github.repository == 'saber-notes/saber' }}
     timeout-minutes: 10
     steps:
       - name: Checkout code

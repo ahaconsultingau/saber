@@ -285,6 +285,25 @@ class _EditorBottomSheetState extends State<EditorBottomSheet> {
                 ),
               ],
             ),
+            // Aha! copy: save this note's page design for new notes.
+            Align(
+              alignment: AlignmentDirectional.centerStart,
+              child: OutlinedButton.icon(
+                icon: const Icon(Icons.bookmark_add_outlined),
+                label: Text(t.editor.menu.makeDefault),
+                onPressed: () {
+                  final info = widget.coreInfo;
+                  stows.newNoteBackgroundPattern.value = info.backgroundPattern;
+                  stows.newNoteLineHeight.value = info.lineHeight;
+                  stows.newNoteLineThickness.value = info.lineThickness;
+                  stows.newNoteBackgroundColor.value =
+                      info.backgroundColor?.toARGB32() ?? 0;
+                  ScaffoldMessenger.of(context).showSnackBar(
+                    SnackBar(content: Text(t.editor.menu.madeDefault)),
+                  );
+                },
+              ),
+            ),
             const SizedBox(height: 16),
             Text(
               t.editor.menu.import,

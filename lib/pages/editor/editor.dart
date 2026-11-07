@@ -10,11 +10,14 @@ import 'package:flutter/foundation.dart' show kDebugMode;
 import 'package:flutter/gestures.dart';
 import 'package:flutter/services.dart';
 import 'package:flutter_quill/flutter_quill.dart' as flutter_quill;
+import 'package:go_router/go_router.dart';
 import 'package:keybinder/keybinder.dart';
 import 'package:logging/logging.dart';
 import 'package:material_ui/material_ui.dart';
 import 'package:path/path.dart' as p;
 import 'package:pdfrx/pdfrx.dart';
+import 'package:perfect_freehand/perfect_freehand.dart';
+import 'package:saber/components/bookmarks/bookmarks_panel.dart';
 import 'package:saber/components/canvas/_asset_cache.dart';
 import 'package:saber/components/canvas/_stroke.dart';
 import 'package:saber/components/canvas/canvas.dart';
@@ -22,15 +25,19 @@ import 'package:saber/components/canvas/canvas_gesture_detector.dart';
 import 'package:saber/components/canvas/canvas_image.dart';
 import 'package:saber/components/canvas/image/editor_image.dart';
 import 'package:saber/components/canvas/save_indicator.dart';
+import 'package:saber/components/editor/floating_side_panel.dart';
 import 'package:saber/components/editor/read_only_banner.dart';
 import 'package:saber/components/theming/adaptive_alert_dialog.dart';
 import 'package:saber/components/theming/adaptive_icon.dart';
 import 'package:saber/components/theming/dynamic_material_app.dart';
 import 'package:saber/components/theming/saber_theme.dart';
 import 'package:saber/components/toolbar/color_bar.dart';
+import 'package:saber/components/toolbar/convert_to_text_dialog.dart';
 import 'package:saber/components/toolbar/editor_bottom_sheet.dart';
 import 'package:saber/components/toolbar/editor_page_manager.dart';
+import 'package:saber/components/toolbar/insert_table_dialog.dart';
 import 'package:saber/components/toolbar/toolbar.dart';
+import 'package:saber/data/bookmarks/note_bookmarks.dart';
 import 'package:saber/data/editor/editor_core_info.dart';
 import 'package:saber/data/editor/editor_exporter.dart';
 import 'package:saber/data/editor/editor_history.dart';
@@ -38,19 +45,24 @@ import 'package:saber/data/editor/page.dart';
 import 'package:saber/data/extensions/change_notifier_extensions.dart';
 import 'package:saber/data/extensions/matrix4_extensions.dart';
 import 'package:saber/data/file_manager/file_manager.dart';
+import 'package:saber/data/handwriting/handwriting_recognizer.dart';
 import 'package:saber/data/nextcloud/saber_syncer.dart';
 import 'package:saber/data/prefs.dart';
+import 'package:saber/data/routes.dart';
 import 'package:saber/data/tools/_tool.dart';
 import 'package:saber/data/tools/eraser.dart';
+import 'package:saber/data/tools/fill.dart';
 import 'package:saber/data/tools/highlighter.dart';
 import 'package:saber/data/tools/laser_pointer.dart';
 import 'package:saber/data/tools/pen.dart';
 import 'package:saber/data/tools/pencil.dart';
 import 'package:saber/data/tools/select.dart';
 import 'package:saber/data/tools/shape_pen.dart';
+import 'package:saber/data/tools/table_lines.dart';
 import 'package:saber/i18n/strings.g.dart';
 import 'package:saber/pages/home/whiteboard.dart';
 import 'package:sbn/change.dart';
+import 'package:sbn/tool_id.dart';
 import 'package:super_clipboard/super_clipboard.dart';
 
 class const _PhotoInfo(final Uint8List bytes, final String extension);
@@ -158,7 +170,8 @@ class EditorState extends State<Editor> {
   set currentTool(Tool tool) {
     _currentTool = tool;
     if (tool is! Eraser) _lastNonEraserTool = tool;
-    stows.lastTool.value = tool.toolId;
+    // Aha! copy: the paint bucket isn't remembered as the last pen.
+    if (tool is! FillTool) stows.lastTool.value = tool.toolId;
   }
 
   ValueNotifier<SavingState> savingState = ValueNotifier(SavingState.saved);
@@ -218,6 +231,12 @@ class EditorState extends State<Editor> {
     for (int pageIndex = 0; pageIndex < coreInfo.pages.length; pageIndex++) {
       listenToQuillChanges(coreInfo.pages[pageIndex].quill, pageIndex);
     }
+
+    if (coreInfo.createdFresh && !coreInfo.readOnly) {
+      _applyNewNoteStartingTool();
+    }
+
+    bookmarks = await NoteBookmarks.load(coreInfo.filePath, coreInfo.pages);
 
     if (coreInfo.isEmpty) {
       createPage(-1);
@@ -565,6 +584,8 @@ class EditorState extends State<Editor> {
       }
     } else if (currentTool is LaserPointer) {
       (currentTool as LaserPointer).onDragStart(position, page, dragPageIndex!);
+    } else if (currentTool is FillTool) {
+      _fillAt(position, dragPageIndex!);
     }
 
     previousPosition = position;
@@ -865,6 +886,150 @@ class EditorState extends State<Editor> {
     autosaveAfterDelay();
   }
 
+  /// Reads the selected handwriting and, if confirmed, adds the text to
+  /// the page's typed text (optionally removing the handwriting).
+  Future<void> convertSelectionToText() async {
+    final select = currentTool;
+    if (select is! Select || !select.doneSelecting) return;
+    final pageIndex = select.selectResult.pageIndex;
+    final strokes = List.of(select.selectResult.strokes);
+    if (strokes.isEmpty) return;
+
+    final result = await showDialog<ConvertToTextResult>(
+      context: context,
+      builder: (context) => ConvertToTextDialog(
+        isModelDownloaded: HandwritingRecognizer.isModelDownloaded,
+        downloadModel: HandwritingRecognizer.downloadModel,
+        recognize: () => HandwritingRecognizer.recognize(strokes),
+      ),
+    );
+    if (result == null || !mounted) return;
+    if (pageIndex >= coreInfo.pages.length) return;
+    final page = coreInfo.pages[pageIndex];
+
+    if (result.text.isNotEmpty) {
+      // Quill changes are recorded in the history and autosaved
+      // by [listenToQuillChanges].
+      final document = page.quill.controller.document;
+      final separator = document.isEmpty() ? '' : '\n';
+      document.insert(document.length - 1, '$separator${result.text}');
+    }
+
+    if (result.removeHandwriting) {
+      final handwriting = strokes
+          .where(HandwritingRecognizer.isHandwriting)
+          .where(page.strokes.contains)
+          .toList();
+      if (handwriting.isNotEmpty) {
+        setState(() {
+          page.strokes.removeWhere(handwriting.contains);
+          select.unselect();
+          history.recordChange(
+            HistoricDelete(strokes: handwriting, images: const []),
+          );
+        });
+        autosaveAfterDelay();
+      }
+    }
+    setState(() {});
+  }
+
+  /// Aha! copy: the paint bucket. Fills the closed shape around [position]
+  /// on page [pageIndex] with the fill colour, under the ink; filling the
+  /// same shape again replaces the colour.
+  Future<void> _fillAt(Offset position, int pageIndex) async {
+    if (coreInfo.readOnly || pageIndex >= coreInfo.pages.length) return;
+    final page = coreInfo.pages[pageIndex];
+    final result = await FillTool.fill(
+      page: page,
+      pageIndex: pageIndex,
+      tap: position,
+      color: FillTool.currentFill.color,
+    );
+    if (!mounted) return;
+    switch (result.outcome) {
+      case FillOutcome.filled:
+        setState(() {
+          if (result.replaced.isNotEmpty) {
+            page.strokes.removeWhere(result.replaced.toSet().contains);
+            history.recordChange(
+              HistoricDelete(strokes: result.replaced, images: const []),
+            );
+          }
+          for (final stroke in result.strokes) {
+            page.insertStroke(stroke);
+          }
+          history.recordChange(
+            HistoricAdd(strokes: result.strokes, images: const []),
+          );
+          page.redrawStrokes();
+        });
+        autosaveAfterDelay();
+      case FillOutcome.onLine:
+        _fillMessage(t.editor.fill.onLine);
+      case FillOutcome.open:
+        _fillMessage(t.editor.fill.open);
+    }
+  }
+
+  void _fillMessage(String message) {
+    ScaffoldMessenger.of(context)
+      ..hideCurrentSnackBar()
+      ..showSnackBar(SnackBar(content: Text(message)));
+  }
+
+  /// Asks for a size, then draws a table on the current page as straight
+  /// lines and selects it so it can be dragged into place.
+  Future<void> insertTable() async {
+    if (coreInfo.readOnly) return;
+    final size = await InsertTableDialog.show(context);
+    if (size == null || !mounted) return;
+    final (rows, columns) = size;
+
+    final pageIndex = currentPageIndex;
+    createPage(pageIndex);
+    final page = coreInfo.pages[pageIndex];
+    final rect = TableLines.placement(page.size, rows);
+
+    final strokes = [
+      for (final (start, end) in TableLines.build(rect, rows, columns))
+        Stroke(
+          color: Pen.currentPen.color,
+          pressureEnabled: false,
+          options: StrokeOptions(
+            size: 3,
+            thinning: 0,
+            smoothing: 0,
+            streamline: 0,
+            simulatePressure: false,
+            start: StrokeEndOptions.start(taperEnabled: false),
+            end: StrokeEndOptions.end(taperEnabled: false),
+            isComplete: true,
+          ),
+          pageIndex: pageIndex,
+          page: page,
+          toolId: .ballpointPen,
+        )..addPoints([start, end, end]),
+    ];
+
+    setState(() {
+      page.strokes.addAll(strokes);
+      history.recordChange(HistoricAdd(strokes: strokes, images: const []));
+
+      final select = Select.currentSelect;
+      select.selectResult = SelectResult(
+        pageIndex: pageIndex,
+        strokes: strokes,
+        images: [],
+        path: Path()..addRect(rect.inflate(12)),
+        pageIndexStart: pageIndex,
+      );
+      select.doneSelecting = true;
+      currentTool = select;
+    });
+    autosaveAfterDelay();
+  }
+
   void listenToQuillChanges(QuillStruct quill, int pageIndex) {
     quill.changeSubscription?.cancel();
     quill.changeSubscription = quill.controller.changes.listen((event) {
@@ -1027,6 +1192,10 @@ class EditorState extends State<Editor> {
               ),
         FileManager.removeUnusedAssets(filePath, numAssets: assets.length),
       ]);
+      // Aha! copy: page numbers may have shifted (pages added, moved or
+      // deleted), so rewrite the bookmarks with the note, before it
+      // counts as saved (back leaves as soon as it does).
+      if (bookmarks.isNotEmpty) await _saveBookmarks();
       savingState.value = .saved;
       history.markLastChangeAsSaved();
     } catch (e, st) {
@@ -1506,6 +1675,10 @@ class EditorState extends State<Editor> {
         bottom: stows.editorToolbarAlignment.value != AxisDirection.up,
         child: Toolbar(
           readOnly: coreInfo.readOnly,
+          // The colour bar keeps clear of the Pages or Bookmarks panel.
+          sidePanelWidth: showPages || showBookmarks
+              ? FloatingSidePanel.widthFor(MediaQuery.sizeOf(context).width)
+              : 0,
           setTool: (tool) {
             if (tool is Eraser && currentTool is Eraser) {
               // setTool(Eraser) is a special case to toggle the eraser on/off
@@ -1590,6 +1763,10 @@ class EditorState extends State<Editor> {
               autosaveAfterDelay();
             });
           },
+          convertSelectionToText: HandwritingRecognizer.isSupported
+              ? convertSelectionToText
+              : null,
+          insertTable: insertTable,
           setColor: (color) {
             setState(() {
               updateColorBar(color);
@@ -1598,6 +1775,8 @@ class EditorState extends State<Editor> {
                 (currentTool as Highlighter).color = color.withAlpha(
                   Highlighter.alpha,
                 );
+              } else if (currentTool is FillTool) {
+                (currentTool as FillTool).color = color.withAlpha(255);
               } else if (currentTool is Pen) {
                 (currentTool as Pen).color = color;
               } else if (currentTool is Select) {
@@ -1661,6 +1840,45 @@ class EditorState extends State<Editor> {
       ),
     );
 
+    // Aha! copy: the Bookmarks panel floats over the page, not the toolbar.
+    // Aha! copy: Pages and Bookmarks float over the page, not the toolbar,
+    // in the same spot on the right.
+    final Widget? sidePanel = showPages
+        ? FloatingSidePanel(
+            key: const ValueKey('pagesPanel'),
+            title: t.editor.pages,
+            onClose: () => setState(() => showPages = false),
+            children: [Expanded(child: pageManager(context, fillWidth: true))],
+          )
+        : showBookmarks
+        ? BookmarksPanel(
+            bookmarks: bookmarks,
+            pageNumberOf: (b) => coreInfo.pages.indexOf(b.page) + 1,
+            currentPageIsBookmarked: _currentPageIsBookmarked,
+            onJump: _jumpToBookmark,
+            onBookmarkThisPage: _bookmarkThisPage,
+            onNewMeeting: _newMeeting,
+            onEdit: _editBookmark,
+            onClose: () => setState(() => showBookmarks = false),
+          )
+        : null;
+    final Widget canvasWithPanels = sidePanel == null
+        ? canvas
+        : Stack(
+            children: [
+              canvas,
+              PositionedDirectional(
+                top: 0,
+                bottom: 0,
+                end: 0,
+                width: FloatingSidePanel.widthFor(
+                  MediaQuery.sizeOf(context).width,
+                ),
+                child: sidePanel,
+              ),
+            ],
+          );
+
     final Widget body;
     if (isToolbarVertical) {
       body = Row(
@@ -1672,7 +1890,7 @@ class EditorState extends State<Editor> {
           Expanded(
             child: Column(
               children: [
-                Expanded(child: canvas),
+                Expanded(child: canvasWithPanels),
                 readonlyBanner,
               ],
             ),
@@ -1686,7 +1904,7 @@ class EditorState extends State<Editor> {
             ? VerticalDirection.up
             : VerticalDirection.down,
         children: [
-          Expanded(child: canvas),
+          Expanded(child: canvasWithPanels),
           toolbar,
           readonlyBanner,
         ],
@@ -1700,17 +1918,9 @@ class EditorState extends State<Editor> {
         return PopScope(
           canPop: savingState == .saved,
           onPopInvokedWithResult: (didPop, _) {
-            switch (savingState) {
-              case .waitingToSave:
-                assert(!didPop);
-                saveToFile(); // trigger save now
-                snackBarNeedsToSaveBeforeExiting();
-              case .saving:
-                assert(!didPop);
-                snackBarNeedsToSaveBeforeExiting();
-              case .saved:
-                break;
-            }
+            if (didPop) return;
+            // Aha! copy: one tap on back saves, waits, then leaves.
+            _saveThenLeave();
           },
           child: child!,
         );
@@ -1725,9 +1935,25 @@ class EditorState extends State<Editor> {
                     : Form(
                         key: _filenameFormKey,
                         autovalidateMode: AutovalidateMode.onUserInteraction,
+                        // Aha! copy: the tablet's own handwriting can write
+                        // straight into the name with the pen.
                         child: TextFormField(
-                          decoration: const InputDecoration(
-                            border: InputBorder.none,
+                          key: const ValueKey('noteTitle'),
+                          // Aha! copy: looks like something you can rename.
+                          decoration: InputDecoration(
+                            isDense: true,
+                            hintText: t.editor.saveState.rename,
+                            contentPadding: const .symmetric(
+                              horizontal: 10,
+                              vertical: 8,
+                            ),
+                            border: OutlineInputBorder(
+                              borderRadius: BorderRadius.circular(10),
+                            ),
+                            suffixIcon: const Icon(Icons.edit, size: 18),
+                            suffixIconConstraints: const BoxConstraints(
+                              minWidth: 36,
+                            ),
                           ),
                           controller: filenameTextEditingController,
                           onChanged: renameFile,
@@ -1737,9 +1963,10 @@ class EditorState extends State<Editor> {
                       ),
                 leading: SaveIndicator(
                   savingState: savingState,
-                  triggerSave: saveToFile,
+                  onBack: _saveThenLeave,
                 ),
                 actions: [
+                  _SaveStateChip(savingState: savingState),
                   IconButton(
                     icon: const AdaptiveIcon(
                       icon: Icons.insert_page_break,
@@ -1763,16 +1990,24 @@ class EditorState extends State<Editor> {
                       cupertinoIcon: CupertinoIcons.rectangle_grid_2x2,
                     ),
                     tooltip: t.editor.pages,
-                    onPressed: () {
-                      showDialog(
-                        context: context,
-                        builder: (context) => AdaptiveAlertDialog(
-                          title: Text(t.editor.pages),
-                          content: pageManager(context),
-                          actions: const [],
-                        ),
-                      );
-                    },
+                    // Aha! copy: opens on the right, where Bookmarks opens.
+                    onPressed: () => setState(() {
+                      showPages = !showPages;
+                      if (showPages) showBookmarks = false;
+                    }),
+                  ),
+                  // Aha! copy: Bookmarks, beside Pages (a different view).
+                  IconButton(
+                    icon: Icon(
+                      showBookmarks
+                          ? Icons.bookmarks
+                          : Icons.bookmarks_outlined,
+                    ),
+                    tooltip: t.editor.bookmarks.title,
+                    onPressed: () => setState(() {
+                      showBookmarks = !showBookmarks;
+                      if (showBookmarks) showPages = false;
+                    }),
                   ),
                   IconButton(
                     icon: const AdaptiveIcon(
@@ -1806,6 +2041,167 @@ class EditorState extends State<Editor> {
             : null,
       ),
     );
+  }
+
+  /// Aha! copy: this note's bookmarks, and whether the panel is open.
+  List<NoteBookmark> bookmarks = [];
+  var showBookmarks = false;
+
+  /// Aha! copy: the Pages panel opens in the same spot as Bookmarks.
+  var showPages = false;
+
+  Future<void> _saveBookmarks() async {
+    if (coreInfo.readOnly) return;
+    await NoteBookmarks.save(coreInfo.filePath, bookmarks, coreInfo.pages);
+  }
+
+  bool get _currentPageIsBookmarked {
+    final index = currentPageIndex;
+    return bookmarks.any((b) => coreInfo.pages.indexOf(b.page) == index);
+  }
+
+  void _jumpToBookmark(NoteBookmark bookmark) {
+    final index = coreInfo.pages.indexOf(bookmark.page);
+    if (index < 0) return;
+    CanvasGestureDetector.scrollToPage(
+      pageIndex: index,
+      pages: coreInfo.pages,
+      screenWidth: MediaQuery.sizeOf(context).width,
+      transformationController: _transformationController,
+    );
+  }
+
+  /// Names and dates a new bookmark on [pageIndex], then adds it.
+  Future<bool> _addBookmark(int pageIndex, {required String name}) async {
+    // A read-only note can't be changed, so its bookmarks can't be saved.
+    if (coreInfo.readOnly) return false;
+    final result = await showDialog<BookmarkDialogResult>(
+      context: context,
+      builder: (context) => BookmarkDialog(
+        initialName: name,
+        initialDate: DateTime.now(),
+        isNew: true,
+      ),
+    );
+    if (result is! BookmarkSaved || !mounted) return false;
+    if (pageIndex >= coreInfo.pages.length) return false;
+    final page = coreInfo.pages[pageIndex];
+    if (result.writeHeading) {
+      // Quill changes are recorded in the history and autosaved.
+      page.quill.controller.document.insert(
+        0,
+        '${result.name} · ${formatBookmarkDate(result.date)}\n',
+      );
+    }
+    setState(() {
+      bookmarks.add(
+        NoteBookmark(name: result.name, date: result.date, page: page),
+      );
+    });
+    await _saveBookmarks();
+    return true;
+  }
+
+  Future<void> _bookmarkThisPage() =>
+      _addBookmark(currentPageIndex, name: t.editor.bookmarks.defaultName);
+
+  /// A fresh page at the end of the note, bookmarked with today's date.
+  Future<void> _newMeeting() async {
+    if (coreInfo.readOnly) return;
+    // Saber keeps a blank page at the end: use it if it's blank, else add one.
+    var pageIndex = coreInfo.pages.length - 1;
+    if (coreInfo.pages[pageIndex].isNotEmpty) {
+      insertPageAfter(pageIndex);
+      pageIndex++;
+    }
+    createPage(pageIndex); // keep a blank page after it
+    final added = await _addBookmark(
+      pageIndex,
+      name: t.editor.bookmarks.newMeetingName,
+    );
+    if (added && mounted) _jumpToBookmark(bookmarks.last);
+  }
+
+  Future<void> _editBookmark(NoteBookmark bookmark) async {
+    if (coreInfo.readOnly) return;
+    final result = await showDialog<BookmarkDialogResult>(
+      context: context,
+      builder: (context) => BookmarkDialog(
+        initialName: bookmark.name,
+        initialDate: bookmark.date,
+        isNew: false,
+      ),
+    );
+    if (result == null || !mounted) return;
+    setState(() {
+      switch (result) {
+        case BookmarkSaved():
+          bookmark
+            ..name = result.name
+            ..date = result.date;
+        case BookmarkRemoved():
+          bookmarks.remove(bookmark);
+      }
+    });
+    await _saveBookmarks();
+  }
+
+  /// Aha! copy: a new note starts with the pen chosen in Settings › New
+  /// pages (or the last-used pen when none is chosen).
+  void _applyNewNoteStartingTool() {
+    final name = stows.newNoteStartingTool.value;
+    final toolId = ToolId.values.where((t) => t.name == name).firstOrNull;
+    final Tool? tool = switch (toolId) {
+      ToolId.fountainPen => Pen.currentPen = Pen.fountainPen(),
+      ToolId.ballpointPen => Pen.currentPen = Pen.ballpointPen(),
+      ToolId.pencil => Pencil.currentPencil,
+      ToolId.highlighter => Highlighter.currentHighlighter,
+      _ => null,
+    };
+    if (tool != null) currentTool = tool;
+  }
+
+  var _leaving = false;
+
+  /// Saves now (or waits for the save in progress), then leaves the editor.
+  /// If the save fails, stays and says so.
+  Future<void> _saveThenLeave() async {
+    if (_leaving) return;
+    _leaving = true;
+    try {
+      if (savingState.value == .waitingToSave) await saveToFile();
+      await _untilNotSaving();
+      if (!mounted) return;
+      if (savingState.value != .saved) {
+        return snackBarNeedsToSaveBeforeExiting();
+      }
+      final navigator = Navigator.of(context);
+      if (navigator.canPop()) {
+        // pop, not maybePop: the save is done, so leave even if PopScope
+        // hasn't caught up with the new saving state yet.
+        navigator.pop();
+      } else {
+        // Nothing to go back to (opened directly): go to Recent notes.
+        context.go(HomeRoutes.routes[0].path);
+      }
+    } finally {
+      _leaving = false;
+    }
+  }
+
+  /// Completes once no save is in progress (rather than checking every few
+  /// milliseconds).
+  Future<void> _untilNotSaving() {
+    if (savingState.value != .saving) return Future.value();
+    final done = Completer<void>();
+    void check() {
+      if (savingState.value == .saving || done.isCompleted) return;
+      savingState.removeListener(check);
+      done.complete();
+    }
+
+    savingState.addListener(check);
+    return done.future;
   }
 
   void snackBarNeedsToSaveBeforeExiting() {
@@ -1936,8 +2332,9 @@ class EditorState extends State<Editor> {
     );
   }
 
-  Widget pageManager(BuildContext context) {
+  Widget pageManager(BuildContext context, {bool fillWidth = false}) {
     return EditorPageManager(
+      fillWidth: fillWidth,
       coreInfo: coreInfo,
       currentPageIndex: currentPageIndex,
       redrawAndSave: () => setState(() {
@@ -2132,5 +2529,70 @@ class EditorState extends State<Editor> {
     } finally {
       coreInfo.dispose();
     }
+  }
+}
+
+/// Aha! copy: "Saved", "Saving…" or "Not saved yet", beside the note's name.
+class _SaveStateChip extends StatelessWidget {
+  const new({required this.savingState});
+
+  final ValueNotifier<SavingState> savingState;
+
+  @override
+  Widget build(BuildContext context) {
+    final colorScheme = ColorScheme.of(context);
+    return ValueListenableBuilder(
+      valueListenable: savingState,
+      builder: (context, state, _) {
+        final (label, icon, fg, bg) = switch (state) {
+          .saved => (
+            t.editor.saveState.saved,
+            Icons.check,
+            colorScheme.onTertiaryContainer,
+            colorScheme.tertiaryContainer,
+          ),
+          .saving => (
+            t.editor.saveState.saving,
+            Icons.sync,
+            colorScheme.onSurfaceVariant,
+            colorScheme.surfaceContainerHighest,
+          ),
+          .waitingToSave => (
+            t.editor.saveState.notSaved,
+            Icons.edit_note,
+            colorScheme.onSurfaceVariant,
+            colorScheme.surfaceContainerHighest,
+          ),
+        };
+        return Padding(
+          padding: const .symmetric(horizontal: 4),
+          child: DecoratedBox(
+            key: const ValueKey('saveStateChip'),
+            decoration: BoxDecoration(
+              color: bg,
+              borderRadius: BorderRadius.circular(999),
+            ),
+            child: Padding(
+              padding: const .symmetric(horizontal: 10, vertical: 4),
+              child: Row(
+                mainAxisSize: .min,
+                spacing: 4,
+                children: [
+                  Icon(icon, size: 14, color: fg),
+                  Text(
+                    label,
+                    style: TextStyle(
+                      color: fg,
+                      fontSize: 12,
+                      fontWeight: FontWeight.w600,
+                    ),
+                  ),
+                ],
+              ),
+            ),
+          ),
+        );
+      },
+    );
   }
 }

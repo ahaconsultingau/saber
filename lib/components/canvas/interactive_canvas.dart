@@ -44,6 +44,8 @@ class InteractiveCanvasViewer extends StatefulWidget {
     this.onDrawStart,
     this.onDrawUpdate,
     this.panEnabled = true,
+    this.twoFingerPanOnly = false,
+    this.shouldIgnoreTouch,
     this.scaleEnabled = true,
     this.scaleFactor = kDefaultMouseScrollToScaleFactor,
     this.transformationController,
@@ -91,6 +93,8 @@ class InteractiveCanvasViewer extends StatefulWidget {
     this.onDrawStart,
     this.onDrawUpdate,
     this.panEnabled = true,
+    this.twoFingerPanOnly = false,
+    this.shouldIgnoreTouch,
     this.scaleEnabled = true,
     this.scaleFactor = 200.0,
     this.transformationController,
@@ -214,6 +218,15 @@ class InteractiveCanvasViewer extends StatefulWidget {
   ///
   ///   * [scaleEnabled], which is similar but for scale.
   final bool panEnabled;
+
+  /// Aha! copy: when true, a one-finger drag doesn't pan; two fingers do.
+  final bool twoFingerPanOnly;
+
+  /// Aha! copy: when this returns true, touch gestures (not the pen) are
+  /// ignored entirely: no pan, no zoom, no drawing. Checked at the start of
+  /// a gesture and on every update, so a palm already down stops as soon as
+  /// the pen comes near. Returns whether the touch was ignored.
+  final bool Function()? shouldIgnoreTouch;
 
   /// If false, the user will be prevented from scaling.
   ///
@@ -698,7 +711,8 @@ class _InteractiveCanvasViewerState extends State<InteractiveCanvasViewer>
     return switch (gestureType) {
       _GestureType.rotate => _rotateEnabled,
       _GestureType.scale => widget.scaleEnabled,
-      _GestureType.pan || null => widget.panEnabled,
+      _GestureType.pan || null =>
+        widget.panEnabled && (!widget.twoFingerPanOnly || _pointerCount >= 2),
     };
   }
 
@@ -709,7 +723,10 @@ class _InteractiveCanvasViewerState extends State<InteractiveCanvasViewer>
   _GestureType _getGestureType(ScaleUpdateDetails details) {
     final double scale = !widget.scaleEnabled ? 1.0 : details.scale;
     final double rotation = !_rotateEnabled ? 0.0 : details.rotation;
-    if ((scale - 1).abs() > rotation.abs()) {
+    // Aha! copy: only a clear pinch or spread zooms; the small change in
+    // finger spacing while two fingers scroll together doesn't.
+    if ((scale - 1).abs() > pinchThreshold &&
+        (scale - 1).abs() > rotation.abs()) {
       return _GestureType.scale;
     } else if (rotation != 0.0) {
       return _GestureType.rotate;
@@ -720,9 +737,36 @@ class _InteractiveCanvasViewerState extends State<InteractiveCanvasViewer>
 
   bool isCurrentGestureADrawGesture = false;
 
+  /// Aha! copy: how far (as a fraction) the fingers must spread or pinch
+  /// before a two-finger gesture zooms.
+  static const pinchThreshold = 0.08;
+
+  /// Aha! copy: once two fingers have scrolled this far (logical px) without
+  /// a clear pinch, the gesture stays a scroll to the end.
+  static const scrollLockDistance = 24.0;
+
+  Offset? _focalStart;
+  var _scrollLocked = false;
+
+  /// Aha! copy: pointers in the current gesture, its device kind, and whether
+  /// it is being ignored by [InteractiveCanvasViewer.shouldIgnoreTouch].
+  int _pointerCount = 0;
+  PointerDeviceKind? _gestureKind;
+  bool _ignoringGesture = false;
+
+  bool _touchShouldBeIgnored() =>
+      _gestureKind == PointerDeviceKind.touch &&
+      (widget.shouldIgnoreTouch?.call() ?? false);
+
   // Handle the start of a gesture. All of pan, scale, and rotate are handled
   // with GestureDetector's scale gesture.
   void _onScaleStart(ScaleStartDetails details) {
+    _pointerCount = details.pointerCount;
+    _gestureKind = details.kind;
+    _focalStart = details.localFocalPoint;
+    _scrollLocked = false;
+    _ignoringGesture = _touchShouldBeIgnored();
+    if (_ignoringGesture) return;
     if (_controller.isAnimating) {
       _controller.stop();
       _controller.reset();
@@ -751,6 +795,12 @@ class _InteractiveCanvasViewerState extends State<InteractiveCanvasViewer>
   // Handle an update to an ongoing gesture. All of pan, scale, and rotate are
   // handled with GestureDetector's scale gesture.
   void _onScaleUpdate(ScaleUpdateDetails details) {
+    _pointerCount = details.pointerCount;
+    if (_ignoringGesture) return;
+    if (!isCurrentGestureADrawGesture && _touchShouldBeIgnored()) {
+      _ignoringGesture = true;
+      return;
+    }
     final double scale = _transformer.value.getMaxScaleOnAxis();
     _scaleAnimationFocalPoint = details.localFocalPoint;
     final Offset focalPointScene = _transformer.toScene(
@@ -762,7 +812,22 @@ class _InteractiveCanvasViewerState extends State<InteractiveCanvasViewer>
       // rotation despite being a two-finger gesture. Here the gesture is
       // allowed to be reinterpreted as its correct type after originally
       // being marked as a pan.
-      _gestureType = _getGestureType(details);
+      // Aha! copy: ...but not once it has clearly been a scroll.
+      if (!_scrollLocked &&
+          (details.localFocalPoint - (_focalStart ?? details.localFocalPoint))
+                  .distance >
+              scrollLockDistance) {
+        _scrollLocked = true;
+      }
+      if (!_scrollLocked) {
+        final newType = _getGestureType(details);
+        if (newType == _GestureType.scale) {
+          // Start zooming from where we are, without a jump.
+          _scaleStart = scale / details.scale;
+          _referenceFocalPoint = focalPointScene;
+        }
+        _gestureType = newType;
+      }
     } else {
       _gestureType ??= _getGestureType(details);
     }
@@ -821,7 +886,12 @@ class _InteractiveCanvasViewerState extends State<InteractiveCanvasViewer>
         // details may have a change in scale here when scaleEnabled is false.
         // In an effort to keep the behavior similar whether or not scaleEnabled
         // is true, these gestures are thrown away.
-        if (details.scale != 1.0) {
+        // Aha! copy: with zoom on, a scroll whose finger spacing drifts a
+        // little (under the pinch threshold) still scrolls.
+        if (details.scale != 1.0 &&
+            !_scrollLocked &&
+            (!widget.scaleEnabled ||
+                (details.scale - 1).abs() > pinchThreshold)) {
           return;
         }
 
@@ -845,6 +915,13 @@ class _InteractiveCanvasViewerState extends State<InteractiveCanvasViewer>
   // Handle the end of a gesture of _GestureType. All of pan, scale, and rotate
   // are handled with GestureDetector's scale gesture.
   void _onScaleEnd(ScaleEndDetails details) {
+    if (_ignoringGesture) {
+      _ignoringGesture = false;
+      // Still report the end, so the editor forgets the pointers it saw
+      // (otherwise the next pen stroke was taken for a zoom and dropped).
+      widget.onInteractionEnd?.call(details);
+      return;
+    }
     widget.onInteractionEnd?.call(details);
 
     if (isCurrentGestureADrawGesture) {

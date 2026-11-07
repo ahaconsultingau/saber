@@ -23,6 +23,10 @@ class Stroke {
   bool get isEmpty => points.isEmpty;
   int get length => points.length;
 
+  /// The points as drawn, in order (read-only), e.g. for handwriting
+  /// recognition.
+  List<Offset> get inputPoints => UnmodifiableListView(points);
+
   int pageIndex;
   HasSize page;
   final ToolId toolId;

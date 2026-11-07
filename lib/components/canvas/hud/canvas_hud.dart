@@ -17,6 +17,7 @@ class CanvasHud extends HookWidget {
     required this.resetZoom,
     required this.singleFingerPanLock,
     required this.setSingleFingerPanLock,
+    this.showSingleFingerPanLock = true,
     required this.axisAlignedPanLock,
     required this.setAxisAlignedPanLock,
   });
@@ -27,6 +28,9 @@ class CanvasHud extends HookWidget {
   final VoidCallback? resetZoom;
   final bool singleFingerPanLock;
   final ValueChanged<bool> setSingleFingerPanLock;
+
+  /// Aha! copy: false hides the single-finger pan lock button.
+  final bool showSingleFingerPanLock;
   final bool axisAlignedPanLock;
   final ValueChanged<bool> setAxisAlignedPanLock;
 
@@ -69,18 +73,19 @@ class CanvasHud extends HookWidget {
                     : t.editor.hud.lockZoom,
               ),
             ),
-            Positioned(
-              top: 45,
-              left: 5,
-              child: CanvasGestureLockBtn(
-                lock: singleFingerPanLock,
-                setLock: setSingleFingerPanLock,
-                icon: singleFingerPanLock ? Icons.pinch : Icons.swipe_up,
-                tooltip: singleFingerPanLock
-                    ? t.editor.hud.unlockSingleFingerPan
-                    : t.editor.hud.lockSingleFingerPan,
+            if (showSingleFingerPanLock)
+              Positioned(
+                top: 45,
+                left: 5,
+                child: CanvasGestureLockBtn(
+                  lock: singleFingerPanLock,
+                  setLock: setSingleFingerPanLock,
+                  icon: singleFingerPanLock ? Icons.pinch : Icons.swipe_up,
+                  tooltip: singleFingerPanLock
+                      ? t.editor.hud.unlockSingleFingerPan
+                      : t.editor.hud.lockSingleFingerPan,
+                ),
               ),
-            ),
             Positioned(
               top: 85,
               left: 5,

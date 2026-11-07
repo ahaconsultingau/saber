@@ -3,6 +3,16 @@ common:
   continueBtn: Continue
   cancel: Cancel
 home:
+  newNote:
+    title: New note
+    name: Name
+    nameHint: e.g. Bayside Council
+    folder: Folder
+    topFolder: All notes (no folder)
+    lineStyle: Line style
+    lineStyleHelp: Page colour and starting pen come from Settings › New pages
+    create: Create
+    skip: Skip
   tabs:
     home: Home
     browse: Browse
@@ -20,8 +30,15 @@ home:
   create:
     newNote: New note
     importNote: Import note
+    quickNote: Quick note
+    quickNoteTooltip: Start a note straight away (name it later)
+  noteshelf:
+    importing: Importing from Noteshelf…
+    imported: Imported $n Noteshelf notebooks
+    skipped: $n items (typed text or pictures) couldn't be brought across
+    failed: Couldn't read $name as a Noteshelf notebook
   welcome: Welcome to Saber
-  invalidFormat: The file you selected is not supported. Please select an sbn, sbn2, sba, or pdf file.
+  invalidFormat: The file you selected is not supported. Please select an sbn, sbn2, sba, pdf or Noteshelf (nsa) file.
   noFiles: No files found
   noPreviewAvailable: No preview available
   createNewNote: Tap the + button to create a new note
@@ -97,8 +114,23 @@ settings:
     general: General
     writing: Writing
     editor: Editor
+    newPages: New pages
     performance: Performance
     advanced: Advanced
+  newPages:
+    lineStyle: Line style
+    pageColour: Page colour
+    startingPen: Starting pen
+    lastUsedPen: The pen I last used
+    preview: Preview
+    previewNote: Every new note starts like this. Existing notes keep their own design.
+    colours:
+      white: White
+      cream: Cream
+      softGrey: Soft grey
+      paleBlue: Pale blue
+      anyColour: Any colour…
+      custom: Your colour
   prefLabels:
     locale: Language
     appTheme: App theme
@@ -118,6 +150,9 @@ settings:
     disableEraserAfterUse: Auto-disable the eraser
     hideFingerDrawingToggle: Hide the finger drawing toggle
     autoDisableFingerDrawingWhenStylusDetected: Auto-disable finger drawing
+    penGuard: Ignore touch while the pen is near
+    penGuardHold: Keep ignoring touch after the pen lifts
+    twoFingerScrollOnly: Scroll with two fingers only
     editorPromptRename: Prompt you to rename new notes
     recentColorsDontSavePresets: Don't save preset colors in recent colors
     recentColorsLength: How many recent colors to store
@@ -139,6 +174,9 @@ settings:
       fixedOn: Finger drawing is fixed as enabled
       fixedOff: Finger drawing is fixed as disabled
     autoDisableFingerDrawingWhenStylusDetected: Turn off finger drawing when a stylus is detected
+    penGuard: Stops your palm moving the page as you write
+    penGuardHold: In seconds, after the pen was last near the screen
+    twoFingerScrollOnly: One finger or a sleeve won't move the page
     editorPromptRename: You can always rename notes later
     printPageIndicators: Show page indicators in exports
     autosave: Auto-save after a short delay, or never
@@ -270,9 +308,11 @@ update:
 editor:
   toolbar:
     toggleColors: Toggle colors (Ctrl C)
+    moveColours: Drag to move the colours to any edge
     select: Select
     toggleEraser: Toggle eraser (Ctrl E)
     photo: Images
+    table: Insert table
     text: Text
     toggleFingerDrawing: Toggle finger drawing (Ctrl F)
     undo: Undo
@@ -287,6 +327,10 @@ editor:
     pencil: Pencil
     shapePen: Shape pen
     laserPointer: Laser pointer
+    fill: Fill (tap inside a shape)
+  fill:
+    onLine: Tap inside the shape, not on its outline.
+    open: That shape isn't closed. Close the gap and try again.
   penOptions:
     size: Size
   colors:
@@ -326,6 +370,46 @@ editor:
   selectionBar:
     delete: Delete
     duplicate: Duplicate
+    convertToText: Convert to text
+  penGuard:
+    hint: Pen near · touch paused
+  bookmarks:
+    title: Bookmarks
+    newMeeting: New meeting
+    newMeetingName: Meeting
+    defaultName: Client meeting
+    bookmarkThisPage: Bookmark this page
+    thisPageIsBookmarked: This page is bookmarked
+    empty: No bookmarks yet. Bookmark a page, or start a new meeting page.
+    dateAndPage: $date · page $page
+    edit: Edit bookmark
+    name: Name
+    date: Date
+    writeHeading: Also write the name and date at the top of the page
+    remove: Remove
+    save: Save
+  saveState:
+    saved: Saved
+    saving: Saving…
+    notSaved: Not saved yet
+    rename: Tap to rename
+  insertTable:
+    title: Insert table
+    rows: Rows
+    columns: Columns
+    insert: Insert
+    hint: The table is selected after it's inserted, so you can drag it into place.
+  convertToText:
+    title: Convert to text
+    downloading: Downloading the handwriting pack. This happens once and needs an internet connection.
+    reading: Reading your handwriting…
+    nothingFound: No handwriting was found in the selection.
+    failed: The handwriting couldn't be read. Check your internet connection if this is the first time, then try again.
+    removeHandwriting: Remove the handwriting
+    textLayerNote: The text is added to the page's typed text, which starts at the top of the page.
+    copy: Copy
+    copied: Copied
+    addToPage: Add to page
   menu:
     clearPage: Clear page $page/$totalPages
     clearAllPages: Clear all pages
@@ -336,6 +420,8 @@ editor:
     lineHeightDescription: Also controls the text size for typed notes
     lineThickness: Line thickness
     lineThicknessDescription: Background line thickness
+    makeDefault: Make this my default for new notes
+    madeDefault: New notes will start with this page design
     backgroundImageFit: Background image fit
     backgroundPattern: Background pattern
     import: Import
