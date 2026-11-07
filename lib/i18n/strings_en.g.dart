@@ -316,8 +316,6 @@ class Translations$editor$en {
 	late final Translations$editor$selectionBar$en selectionBar = Translations$editor$selectionBar$en.internal(_root);
 	late final Translations$editor$penGuard$en penGuard = Translations$editor$penGuard$en.internal(_root);
 	late final Translations$editor$bookmarks$en bookmarks = Translations$editor$bookmarks$en.internal(_root);
-	late final Translations$editor$handwritingPad$en handwritingPad = Translations$editor$handwritingPad$en.internal(_root);
-	late final Translations$editor$renameNote$en renameNote = Translations$editor$renameNote$en.internal(_root);
 	late final Translations$editor$saveState$en saveState = Translations$editor$saveState$en.internal(_root);
 	late final Translations$editor$insertTable$en insertTable = Translations$editor$insertTable$en.internal(_root);
 	late final Translations$editor$convertToText$en convertToText = Translations$editor$convertToText$en.internal(_root);
@@ -1467,48 +1465,6 @@ class Translations$editor$bookmarks$en {
 
 	/// en: 'Remove'
 	String get remove => 'Remove';
-
-	/// en: 'Save'
-	String get save => 'Save';
-}
-
-// Path: editor.handwritingPad
-class Translations$editor$handwritingPad$en {
-	Translations$editor$handwritingPad$en.internal(this._root);
-
-	final Translations _root; // ignore: unused_field
-
-	// Translations
-
-	/// en: 'Or write it here with the pen (scribble over a word to rub it out)'
-	String get hint => 'Or write it here with the pen (scribble over a word to rub it out)';
-
-	/// en: 'Reading your handwriting…'
-	String get reading => 'Reading your handwriting…';
-
-	/// en: 'Downloading the handwriting pack (once; needs internet)…'
-	String get downloading => 'Downloading the handwriting pack (once; needs internet)…';
-
-	/// en: 'Couldn't read that. Try again, or type the name.'
-	String get failed => 'Couldn\'t read that. Try again, or type the name.';
-
-	/// en: 'No words found. Try writing a little larger, or type the name.'
-	String get noText => 'No words found. Try writing a little larger, or type the name.';
-
-	/// en: 'Clear'
-	String get clear => 'Clear';
-}
-
-// Path: editor.renameNote
-class Translations$editor$renameNote$en {
-	Translations$editor$renameNote$en.internal(this._root);
-
-	final Translations _root; // ignore: unused_field
-
-	// Translations
-
-	/// en: 'Rename note'
-	String get title => 'Rename note';
 
 	/// en: 'Save'
 	String get save => 'Save';

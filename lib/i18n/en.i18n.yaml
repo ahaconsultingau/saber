@@ -388,16 +388,6 @@ editor:
     writeHeading: Also write the name and date at the top of the page
     remove: Remove
     save: Save
-  handwritingPad:
-    hint: Or write it here with the pen (scribble over a word to rub it out)
-    reading: Reading your handwriting…
-    downloading: Downloading the handwriting pack (once; needs internet)…
-    failed: Couldn't read that. Try again, or type the name.
-    noText: No words found. Try writing a little larger, or type the name.
-    clear: Clear
-  renameNote:
-    title: Rename note
-    save: Save
   saveState:
     saved: Saved
     saving: Saving…

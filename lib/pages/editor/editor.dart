@@ -27,7 +27,6 @@ import 'package:saber/components/canvas/image/editor_image.dart';
 import 'package:saber/components/canvas/save_indicator.dart';
 import 'package:saber/components/editor/floating_side_panel.dart';
 import 'package:saber/components/editor/read_only_banner.dart';
-import 'package:saber/components/editor/rename_note_dialog.dart';
 import 'package:saber/components/theming/adaptive_alert_dialog.dart';
 import 'package:saber/components/theming/adaptive_icon.dart';
 import 'package:saber/components/theming/dynamic_material_app.dart';
@@ -1936,42 +1935,30 @@ class EditorState extends State<Editor> {
                     : Form(
                         key: _filenameFormKey,
                         autovalidateMode: AutovalidateMode.onUserInteraction,
-                        // Aha! copy: the pen on the name opens a box to
-                        // write the new name in; a finger still types.
-                        child: Listener(
-                          onPointerDown: (e) => _titlePointerKind = e.kind,
-                          child: TextFormField(
-                            key: const ValueKey('noteTitle'),
-                            stylusHandwritingEnabled: false,
-                            onTap: () {
-                              if (_titlePointerKind ==
-                                      PointerDeviceKind.stylus ||
-                                  _titlePointerKind ==
-                                      PointerDeviceKind.invertedStylus) {
-                                _renameWithPen();
-                              }
-                            },
-                            // Aha! copy: looks like something you can rename.
-                            decoration: InputDecoration(
-                              isDense: true,
-                              hintText: t.editor.saveState.rename,
-                              contentPadding: const .symmetric(
-                                horizontal: 10,
-                                vertical: 8,
-                              ),
-                              border: OutlineInputBorder(
-                                borderRadius: BorderRadius.circular(10),
-                              ),
-                              suffixIcon: const Icon(Icons.edit, size: 18),
-                              suffixIconConstraints: const BoxConstraints(
-                                minWidth: 36,
-                              ),
+                        // Aha! copy: the tablet's own handwriting can write
+                        // straight into the name with the pen.
+                        child: TextFormField(
+                          key: const ValueKey('noteTitle'),
+                          // Aha! copy: looks like something you can rename.
+                          decoration: InputDecoration(
+                            isDense: true,
+                            hintText: t.editor.saveState.rename,
+                            contentPadding: const .symmetric(
+                              horizontal: 10,
+                              vertical: 8,
                             ),
-                            controller: filenameTextEditingController,
-                            onChanged: renameFile,
-                            autofocus: needsNaming,
-                            validator: _validateFilenameTextField,
+                            border: OutlineInputBorder(
+                              borderRadius: BorderRadius.circular(10),
+                            ),
+                            suffixIcon: const Icon(Icons.edit, size: 18),
+                            suffixIconConstraints: const BoxConstraints(
+                              minWidth: 36,
+                            ),
                           ),
+                          controller: filenameTextEditingController,
+                          onChanged: renameFile,
+                          autofocus: needsNaming,
+                          validator: _validateFilenameTextField,
                         ),
                       ),
                 leading: SaveIndicator(
@@ -2054,22 +2041,6 @@ class EditorState extends State<Editor> {
             : null,
       ),
     );
-  }
-
-  /// Aha! copy: what last touched the note's name (pen or finger).
-  PointerDeviceKind? _titlePointerKind;
-
-  /// Aha! copy: the pen touched the note's name: rename it in a box with
-  /// room to write.
-  Future<void> _renameWithPen() async {
-    if (coreInfo.readOnly) return;
-    FocusManager.instance.primaryFocus?.unfocus();
-    final newName = await RenameNoteDialog.show(context, coreInfo.fileName);
-    FocusManager.instance.primaryFocus?.unfocus();
-    if (newName == null || !mounted) return;
-    filenameTextEditingController.text = newName;
-    _renameTimer?.cancel();
-    await _renameFileNow();
   }
 
   /// Aha! copy: this note's bookmarks, and whether the panel is open.
