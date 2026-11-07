@@ -18,6 +18,7 @@ additions below. Everything else is standard Saber.
 | **No Whiteboard** | Side bar | The Whiteboard (a scratch page that never became a named note) is replaced by New note. Anything left on it is moved once into a note called "Whiteboard <date>" at the top of Recent notes. Import is the small button beside + New note. |
 | **Colour bar** | The colour circle in a note's toolbar turns it on and off | It stays open while you write and pick colours, and is still open in the next note, until you tap the colour circle again. A small bar with six colours: black, blue, orange, green, red and grey for pens; yellow, green, pink, blue, orange and purple for the highlighter. Tap a colour to use it. Tap the one in use again (or press and hold any) to change it with the colour wheel or by typing its code; the new colour stays in that spot. Drag the bar's handle (the dots) to any edge and it snaps there; it opens wherever you last left it (the right to start with). |
 | **Paint fill** | The paint-bucket button after the highlighter (the colour bar opens with it) | Tap inside a closed outline with the pen: it fills with solid colour, under the ink, so writing inside stays on top and holes in letters stay clear. One tap per shape. Gaps up to about 5 mm are closed for you; with a bigger gap nothing is filled and a message says to close it. Filling again recolours. Saved as ordinary shape-pen strokes, so the Mac app shows it; undo, lasso and eraser work on it. |
+| **Import from Noteshelf** | The small Import button beside + New note; pick one or more `.nsa` files (Google Drive shows in the picker) | Each Noteshelf notebook becomes a Saber note with the same pages, its handwriting as real, editable strokes (colours, highlighter, straight lines and ovals), lined paper and its bookmarks. Typed text boxes and pictures aren't brought across (it says how many). Worked out from a real notebook exported by Noteshelf 3 on the tablet; Noteshelf doesn't publish the format, so a future Noteshelf update could change it. |
 | **Pages panel** | Pages button in a note's top bar | Opens on the right, in the same spot as Bookmarks (was a box in the middle). |
 
 ## Builds
@@ -44,6 +45,7 @@ additions below. Everything else is standard Saber.
   call (`handwriting_recognizer.dart`)
 - `lib/data/tools/table_lines.dart`: table geometry
 - `lib/data/tools/fill.dart`: paint fill (grid, flood fill, gap closing)
+- `lib/data/aha/noteshelf_import.dart`, `sqlite_reader.dart`: Noteshelf `.nsa` import (a small read-only SQLite reader, so no database library is added)
 - `lib/components/toolbar/convert_to_text_dialog.dart`,
   `insert_table_dialog.dart`: the dialogs
 - `lib/pages/editor/editor.dart`: `convertSelectionToText()`, `insertTable()`

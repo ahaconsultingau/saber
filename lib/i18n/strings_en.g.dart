@@ -78,12 +78,13 @@ class Translations$home$en {
 	late final Translations$home$titles$en titles = Translations$home$titles$en.internal(_root);
 	late final Translations$home$tooltips$en tooltips = Translations$home$tooltips$en.internal(_root);
 	late final Translations$home$create$en create = Translations$home$create$en.internal(_root);
+	late final Translations$home$noteshelf$en noteshelf = Translations$home$noteshelf$en.internal(_root);
 
 	/// en: 'Welcome to Saber'
 	String get welcome => 'Welcome to Saber';
 
-	/// en: 'The file you selected is not supported. Please select an sbn, sbn2, sba, or pdf file.'
-	String get invalidFormat => 'The file you selected is not supported. Please select an sbn, sbn2, sba, or pdf file.';
+	/// en: 'The file you selected is not supported. Please select an sbn, sbn2, sba, pdf or Noteshelf (nsa) file.'
+	String get invalidFormat => 'The file you selected is not supported. Please select an sbn, sbn2, sba, pdf or Noteshelf (nsa) file.';
 
 	/// en: 'No files found'
 	String get noFiles => 'No files found';
@@ -452,6 +453,27 @@ class Translations$home$create$en {
 
 	/// en: 'Start a note straight away (name it later)'
 	String get quickNoteTooltip => 'Start a note straight away (name it later)';
+}
+
+// Path: home.noteshelf
+class Translations$home$noteshelf$en {
+	Translations$home$noteshelf$en.internal(this._root);
+
+	final Translations _root; // ignore: unused_field
+
+	// Translations
+
+	/// en: 'Importing from Noteshelf…'
+	String get importing => 'Importing from Noteshelf…';
+
+	/// en: 'Imported $n Noteshelf notebooks'
+	String imported({required Object n}) => 'Imported ${n} Noteshelf notebooks';
+
+	/// en: '$n items (typed text or pictures) couldn't be brought across'
+	String skipped({required Object n}) => '${n} items (typed text or pictures) couldn\'t be brought across';
+
+	/// en: 'Couldn't read $name as a Noteshelf notebook'
+	String failed({required Object name}) => 'Couldn\'t read ${name} as a Noteshelf notebook';
 }
 
 // Path: home.newFolder

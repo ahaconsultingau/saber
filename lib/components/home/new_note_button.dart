@@ -1,7 +1,10 @@
+import 'dart:io';
+
 import 'package:file_picker/file_picker.dart';
 import 'package:go_router/go_router.dart';
 import 'package:material_ui/material_ui.dart';
 import 'package:saber/components/home/new_note_dialog.dart';
+import 'package:saber/data/aha/noteshelf_import.dart';
 import 'package:saber/data/editor/editor_core_info.dart';
 import 'package:saber/data/file_manager/file_manager.dart';
 import 'package:saber/data/routes.dart';
@@ -90,8 +93,15 @@ class _NewNoteButtonState extends State<NewNoteButton> {
   }
 
   Future<void> _import() async {
-    final file = await FilePicker.pickFile(type: FileType.any);
-    if (file == null) return;
+    // Aha! copy: several files can be picked at once (for Noteshelf
+    // notebooks, e.g. straight from Google Drive in the picker).
+    final files = await FilePicker.pickFiles(type: FileType.any);
+    if (files.isEmpty) return;
+    final noteshelf = files
+        .where((f) => f.name.toLowerCase().endsWith('.nsa'))
+        .toList();
+    if (noteshelf.isNotEmpty) return _importNoteshelf(noteshelf);
+    final file = files.first;
 
     final filePath = file.path;
     final fileName = file.name;
@@ -128,6 +138,44 @@ class _NewNoteButtonState extends State<NewNoteButton> {
             .showSnackBar(SnackBar(content: Text(t.home.invalidFormat)));
       }
       throw 'Invalid file type';
+    }
+  }
+
+  /// Aha! copy: turns Noteshelf notebooks (`.nsa`) into Saber notes with
+  /// editable handwriting. Opens the note when there's just one.
+  Future<void> _importNoteshelf(List<PlatformFile> files) async {
+    final messenger = ScaffoldMessenger.of(context);
+    messenger.showSnackBar(SnackBar(content: Text(t.home.noteshelf.importing)));
+    final imported = <String>[];
+    var skipped = 0;
+    final failed = <String>[];
+    for (final file in files) {
+      try {
+        final bytes = await File(file.path!).readAsBytes();
+        final (path, left) = await NoteshelfImport.importBytes(
+          bytes,
+          fileName: file.name,
+          folder: '${widget.path ?? ''}/',
+        );
+        imported.add(path);
+        skipped += left;
+      } catch (e, st) {
+        NoteshelfImport.log.warning('Import of ${file.name} failed: $e', e, st);
+        failed.add(file.name);
+      }
+    }
+    if (!mounted) return;
+    messenger.hideCurrentSnackBar();
+    final lines = [
+      if (imported.length > 1) t.home.noteshelf.imported(n: imported.length),
+      if (skipped > 0) t.home.noteshelf.skipped(n: skipped),
+      for (final name in failed) t.home.noteshelf.failed(name: name),
+    ];
+    if (lines.isNotEmpty) {
+      messenger.showSnackBar(SnackBar(content: Text(lines.join('\n'))));
+    }
+    if (imported.length == 1) {
+      context.push(RoutePaths.editFilePath(imported.single));
     }
   }
 }
