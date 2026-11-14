@@ -59,7 +59,9 @@ class Pen extends Tool {
       options = stows.lastBrushOptions.value,
       pressureEnabled = true,
       color = Color(stows.lastFountainPenColor.value),
-      toolId = .fountainPen;
+      toolId = .fountainPen {
+    feather = stows.lastBrushFeather.value;
+  }
 
   /// Whether this is the paintbrush (it shares the fountain pen's type).
   bool get isBrush => icon == brushIcon;
@@ -81,6 +83,9 @@ class Pen extends Tool {
   Color color;
   bool pressureEnabled;
   StrokeOptions options;
+
+  /// Aha! copy: soft edges, 0 to 1 (the brush only).
+  double feather = 0;
 
   static var _currentPen = stows.lastPenIsBrush.value
       ? Pen.brush()
@@ -108,6 +113,7 @@ class Pen extends Tool {
       pageIndex: pageIndex,
       page: page,
       toolId: toolId,
+      feather: feather,
     );
     onDragUpdate(position, pressure);
   }

@@ -245,6 +245,16 @@ class Stows {
     volatile: !_isOnMainIsolate,
   );
 
+  /// Aha! copy: the eraser's size (page units, as a radius).
+  final eraserSize = PlainStow('eraserSize', 10.0, volatile: !_isOnMainIsolate);
+
+  /// Aha! copy: how soft the brush's edges are, 0 (crisp) to 1 (soft).
+  final lastBrushFeather = PlainStow(
+    'lastBrushFeather',
+    0.0,
+    volatile: !_isOnMainIsolate,
+  );
+
   /// Aha! copy: whether the last pen was the brush (it saves as a fountain
   /// pen, so the last tool alone can't tell).
   final lastPenIsBrush = PlainStow(

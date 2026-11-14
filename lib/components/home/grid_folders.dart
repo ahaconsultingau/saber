@@ -4,6 +4,7 @@ import 'package:material_ui/material_ui.dart';
 import 'package:saber/components/aha/lock_widgets.dart';
 import 'package:saber/components/home/delete_folder_button.dart';
 import 'package:saber/components/home/new_folder_dialog.dart';
+import 'package:saber/components/home/preview_card.dart';
 import 'package:saber/components/home/rename_folder_button.dart';
 import 'package:saber/components/theming/adaptive_icon.dart';
 import 'package:saber/data/aha/note_locks.dart';
@@ -23,6 +24,7 @@ class GridFolders extends StatelessWidget {
     required this.doesFolderExist,
     required this.folders,
     this.parentPath,
+    this.onNotesDropped,
   });
 
   final bool isAtRoot;
@@ -39,6 +41,10 @@ class GridFolders extends StatelessWidget {
 
   /// Aha! copy: the folder these are in, for their password locks.
   final String? parentPath;
+
+  /// Aha! copy: notes dragged onto a folder card ('..' for the folder
+  /// above). Null turns dropping off.
+  final void Function(String folderName, List<String> notes)? onNotesDropped;
 
   @override
   Widget build(BuildContext context) {
@@ -69,6 +75,7 @@ class GridFolders extends StatelessWidget {
             deleteFolder: deleteFolder,
             onTap: onTap,
             parentPath: parentPath,
+            onNotesDropped: onNotesDropped,
           );
         },
       ),
@@ -87,6 +94,7 @@ class _GridFolder extends StatefulWidget {
     required this.deleteFolder,
     required this.onTap,
     this.parentPath,
+    this.onNotesDropped,
   }) : assert(
          (folderName == null) ^ (cardType == .realFolder),
          'Real folders must specify a folder name',
@@ -101,6 +109,7 @@ class _GridFolder extends StatefulWidget {
   final Future<void> Function(String) deleteFolder;
   final Function(String) onTap;
   final String? parentPath;
+  final void Function(String folderName, List<String> notes)? onNotesDropped;
 
   /// The lock key of this folder.
   String get lockKey =>
@@ -120,6 +129,42 @@ class _GridFolderState extends State<_GridFolder> {
       colorScheme.primary.withValues(alpha: 0.05),
       colorScheme.surface,
     );
+    // Aha! copy: notes can be dragged onto a folder (or onto the card for
+    // the folder above) to move them there.
+    final dropName = switch (widget.cardType) {
+      .realFolder => widget.folderName,
+      .backFolder => '..',
+      .newFolder => null,
+    };
+    if (dropName == null || widget.onNotesDropped == null) {
+      return _buildCard(context, colorScheme, cardElevatedColor);
+    }
+    return DragTarget<NoteDrag>(
+      onAcceptWithDetails: (details) =>
+          widget.onNotesDropped!(dropName, details.data.paths),
+      builder: (context, candidates, _) => AnimatedContainer(
+        key: ValueKey('folderDrop-$dropName'),
+        duration: const Duration(milliseconds: 150),
+        // Drawn over the card, so it doesn't change the card's size.
+        foregroundDecoration: BoxDecoration(
+          borderRadius: BorderRadius.circular(12),
+          border: Border.all(
+            color: candidates.isEmpty
+                ? Colors.transparent
+                : colorScheme.primary,
+            width: 3,
+          ),
+        ),
+        child: _buildCard(context, colorScheme, cardElevatedColor),
+      ),
+    );
+  }
+
+  Widget _buildCard(
+    BuildContext context,
+    ColorScheme colorScheme,
+    Color cardElevatedColor,
+  ) {
     return MouseRegion(
       cursor: SystemMouseCursors.click,
       child: GestureDetector(

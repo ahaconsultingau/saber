@@ -19,7 +19,9 @@ additions below. Everything else is standard Saber.
 | **Colour bar** | The colour circle in a note's toolbar turns it on and off | It stays open while you write and pick colours, and is still open in the next note, until you tap the colour circle again. A small bar with six colours: black, blue, orange, green, red and grey for pens; yellow, green, pink, blue, orange and purple for the highlighter. Tap a colour to use it. Tap the one in use again (or press and hold any) to change it with the colour wheel or by typing its code; the new colour stays in that spot. Drag the bar's handle (the dots) to any edge and it snaps there; it opens wherever you last left it (the right to start with). |
 | **Paint fill** | The paint-bucket button after the highlighter (the colour bar opens with it) | Tap inside a closed outline with the pen: it fills with solid colour, under the ink, so writing inside stays on top and holes in letters stay clear. One tap per shape. Gaps up to about 5 mm are closed for you; with a bigger gap nothing is filled and a message says to close it. Filling again recolours. Saved as ordinary shape-pen strokes, so the Mac app shows it; undo, lasso and eraser work on it. |
 | **Import from Noteshelf** | The small Import button beside + New note; pick one or more `.nsa` files (Google Drive shows in the picker) | Each Noteshelf notebook becomes a Saber note with the same pages, its handwriting as real, editable strokes (colours, highlighter, straight lines and ovals), lined paper and its bookmarks. Typed text boxes and pictures aren't brought across (it says how many). Worked out from a real notebook exported by Noteshelf 3 on the tablet; Noteshelf doesn't publish the format, so a future Noteshelf update could change it. |
-| **Brush** | Tap the pen in use; choose the paintbrush beside the fountain pen, ballpoint and shape pen | A soft brush: thick when pressed, thin when light, tapered ends; its size has its own slider (2 to 60). Saved as a fountain-pen stroke with brush settings, so the Mac app draws it the same. |
+| **Brush** | Tap the pen in use; choose the paintbrush beside the fountain pen, ballpoint and shape pen | A soft brush: thick when pressed, thin when light, tapered ends; its size has its own slider (2 to 60). **Feathering** (0 to 100%, beside the size) softens the edges; the brush remembers both. Saved as a fountain-pen stroke with brush settings, so the Mac app draws it the same, except feathering: the Mac shows feathered strokes with crisp edges. |
+| **Eraser size** | Choose the eraser: a slider appears above the toolbar | 3 to 80 (Saber's was fixed at 10). Remembered for next time. |
+| **Drag notes into folders** | Browse | Press and hold a note, then drag it onto a folder (or onto the back-arrow card to move it up a level) and let go. If several notes are selected, dragging one of them moves them all. Press and hold without dragging still selects, as before. |
 | **Password locks** | Notes: long-press a note, then the lock in the bar. Folders: long-press a folder in Browse, then the lock | A locked note (or any note in a locked folder) asks for its password before it opens, and its preview and folder contents are hidden. Everything locks again when the app has been left for 2 minutes. Inside Saber Aha only: the files aren't encrypted (the Mac's Saber still opens them), and passwords are kept on this tablet as salted hashes. A forgotten password can't be recovered in Saber Aha. |
 | **Pages panel** | Pages button in a note's top bar | Opens on the right, in the same spot as Bookmarks (was a box in the middle). |
 
@@ -47,13 +49,15 @@ additions below. Everything else is standard Saber.
   call (`handwriting_recognizer.dart`)
 - `lib/data/tools/table_lines.dart`: table geometry
 - `lib/data/tools/fill.dart`: paint fill (grid, flood fill, gap closing)
+- `lib/components/toolbar/aha_slider.dart`: the eraser-size and feathering sliders; feathering is the stroke's `aF` key, drawn as a blur in `_canvas_painter.dart`
+- `lib/components/home/preview_card.dart` (`NoteDrag`), `grid_folders.dart` (drop targets), `lib/pages/home/browse.dart` (`moveNotesTo`): drag notes into folders
 - `lib/data/aha/note_locks.dart`, `lib/components/aha/lock_widgets.dart`: password locks
 - `lib/data/aha/noteshelf_import.dart`, `sqlite_reader.dart`: Noteshelf `.nsa` import (a small read-only SQLite reader, so no database library is added)
 - `lib/components/toolbar/convert_to_text_dialog.dart`,
   `insert_table_dialog.dart`: the dialogs
 - `lib/pages/editor/editor.dart`: `convertSelectionToText()`, `insertTable()`
 - Tests: `test/handwriting_ink_lines_test.dart`, `test/table_lines_test.dart`,
-  `test/editor_table_and_convert_test.dart`
+  `test/editor_table_and_convert_test.dart`, `test/eraser_brush_folders_test.dart`
 
 ## Keeping up with Saber
 

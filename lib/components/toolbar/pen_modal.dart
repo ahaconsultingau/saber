@@ -1,6 +1,7 @@
 import 'package:flutter_svg/flutter_svg.dart';
 import 'package:font_awesome_flutter/font_awesome_flutter.dart';
 import 'package:material_ui/material_ui.dart';
+import 'package:saber/components/toolbar/aha_slider.dart';
 import 'package:saber/components/toolbar/size_picker.dart';
 import 'package:saber/data/extensions/axis_extensions.dart';
 import 'package:saber/data/prefs.dart';
@@ -36,6 +37,22 @@ class _PenModalState<T extends Pen> extends State<PenModal<T>> {
       spacing: 8,
       children: [
         SizePicker(axis: axis, pen: pen),
+
+        // Aha! copy: how soft the brush's edges are.
+        if (pen.isBrush)
+          AhaToolSlider(
+            key: const ValueKey('brushFeather'),
+            axis: axis,
+            label: t.editor.penOptions.feathering,
+            valueLabel: '${(pen.feather * 100).round()}%',
+            value: pen.feather,
+            min: 0,
+            max: 1,
+            onChanged: (v) => setState(() {
+              pen.feather = v;
+              stows.lastBrushFeather.value = v;
+            }),
+          ),
 
         if (pen is! Highlighter && pen is! Pencil) ...[
           _PenSelector(

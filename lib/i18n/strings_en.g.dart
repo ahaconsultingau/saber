@@ -79,6 +79,10 @@ class Translations$home$en {
 	late final Translations$home$titles$en titles = Translations$home$titles$en.internal(_root);
 	late final Translations$home$tooltips$en tooltips = Translations$home$tooltips$en.internal(_root);
 	late final Translations$home$create$en create = Translations$home$create$en.internal(_root);
+
+	/// en: 'Moved $n to $folder'
+	String movedNotes({required Object n, required Object folder}) => 'Moved ${n} to ${folder}';
+
 	late final Translations$home$noteshelf$en noteshelf = Translations$home$noteshelf$en.internal(_root);
 
 	/// en: 'Welcome to Saber'
@@ -1325,6 +1329,12 @@ class Translations$editor$penOptions$en {
 
 	/// en: 'Size'
 	String get size => 'Size';
+
+	/// en: 'Feathering'
+	String get feathering => 'Feathering';
+
+	/// en: 'Eraser size'
+	String get eraserSize => 'Eraser size';
 }
 
 // Path: editor.colors

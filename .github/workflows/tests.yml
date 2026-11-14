@@ -49,6 +49,12 @@ jobs:
       - name: Disable Flutter CLI animations
         run: flutter config --no-cli-animations
 
+      # Aha! copy: a cache restored from an older pubspec can leave stale
+      # package files that break `pub get` (seen when a git dependency
+      # moved, Nov 2026). Clear them; pub get rebuilds them.
+      - name: Clear stale package files
+        run: rm -rf .dart_tool packages/*/.dart_tool packages/*/pubspec.lock .flutter-plugins-dependencies packages/*/.flutter-plugins-dependencies
+
       - run: flutter pub get
 
       - name: Download Apple fonts

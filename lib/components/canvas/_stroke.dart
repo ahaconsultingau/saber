@@ -73,7 +73,13 @@ class Stroke {
     required this.pageIndex,
     required this.page,
     required this.toolId,
+    this.feather = 0,
   });
+
+  /// Aha! copy: how soft the edges are, 0 (crisp) to 1 (soft); the brush's
+  /// feathering. Saved under 'aF', which the standard Saber apps ignore (they
+  /// draw the stroke with crisp edges).
+  double feather;
 
   factory fromJson(
     Map<String, dynamic> json, {
@@ -152,6 +158,7 @@ class Stroke {
       pageIndex: pageIndex,
       page: page,
       toolId: toolId,
+      feather: (json['aF'] as num?)?.toDouble() ?? 0,
     )..points.addAll(points);
   }
   Map<String, dynamic> toJson() {
@@ -166,6 +173,7 @@ class Stroke {
       'ty': toolId.id,
       'pe': pressureEnabled,
       'c': color.toARGB32(),
+      if (feather > 0) 'aF': feather,
     }..addAll(options.toJson());
   }
 
@@ -411,6 +419,7 @@ class Stroke {
     pageIndex: pageIndex,
     page: page,
     toolId: toolId,
+    feather: feather,
   )..points.addAll(points);
 }
 

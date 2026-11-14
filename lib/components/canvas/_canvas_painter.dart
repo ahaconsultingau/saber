@@ -117,7 +117,7 @@ class CanvasPainter extends CustomPainter {
 
       paint.color = color;
       paint.shader = null;
-      paint.maskFilter = null;
+      paint.maskFilter = _featherFilter(stroke);
       if (stroke.toolId == .pencil) {
         if (shouldUsePencilShader(stroke.options.size)) {
           paint.color = Colors.white;
@@ -152,6 +152,14 @@ class CanvasPainter extends CustomPainter {
     }
   }
 
+  /// Aha! copy: soft edges for a feathered (brush) stroke.
+  static MaskFilter? _featherFilter(Stroke stroke) => stroke.feather > 0
+      ? MaskFilter.blur(
+          BlurStyle.normal,
+          stroke.feather * stroke.options.size * 0.35,
+        )
+      : null;
+
   void _drawCurrentStroke(Canvas canvas) {
     if (currentStroke == null) return;
 
@@ -164,7 +172,7 @@ class CanvasPainter extends CustomPainter {
 
     paint.color = color;
     paint.shader = null;
-    paint.maskFilter = null;
+    paint.maskFilter = _featherFilter(currentStroke!);
     if (currentStroke!.toolId == .pencil) {
       paint.color = Colors.white;
       paint.shader = page.pencilShader

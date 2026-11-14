@@ -32,6 +32,7 @@ home:
     importNote: Import note
     quickNote: Quick note
     quickNoteTooltip: Start a note straight away (name it later)
+  movedNotes: Moved $n to $folder
   noteshelf:
     importing: Importing from Noteshelf…
     imported: Imported $n Noteshelf notebooks
@@ -334,6 +335,8 @@ editor:
     open: That shape isn't closed. Close the gap and try again.
   penOptions:
     size: Size
+    feathering: Feathering
+    eraserSize: Eraser size
   colors:
     colorPicker: Color picker
     customBrightnessHue: Custom $b $h

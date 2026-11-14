@@ -24,6 +24,7 @@ import 'package:saber/data/file_manager/file_manager.dart';
 import 'package:saber/data/prefs.dart';
 import 'package:saber/data/routes.dart';
 import 'package:saber/i18n/strings.g.dart';
+import 'package:saber/pages/editor/editor.dart';
 
 class BrowsePage extends StatefulHookWidget {
   const new({super.key, String? path}) : initialPath = path;
@@ -113,6 +114,36 @@ class _BrowsePageState extends State<BrowsePage> {
     findChildrenOfPath();
   }
 
+  /// Aha! copy: notes dragged onto a folder card move into it ('..' is the
+  /// folder above). Their names stay; a clash gets a number added.
+  Future<void> moveNotesTo(String folderName, List<String> notes) async {
+    final current = path ?? '/';
+    final target = folderName == '..'
+        ? p.dirname(current)
+        : p.join(current, folderName);
+    var moved = 0;
+    for (final note in notes) {
+      if (p.dirname(note) == target) continue;
+      final name = note.substring(note.lastIndexOf('/') + 1);
+      await FileManager.moveFile(
+        note + Editor.extension,
+        p.join(target, name) + Editor.extension,
+      );
+      moved++;
+    }
+    selectedFiles.value = [];
+    await findChildrenOfPath();
+    if (!mounted || moved == 0) return;
+    final where = target == '/' ? t.home.newNote.topFolder : p.basename(target);
+    ScaffoldMessenger.of(context)
+      ..hideCurrentSnackBar()
+      ..showSnackBar(
+        SnackBar(
+          content: Text(t.home.movedNotes(n: moved, folder: where)),
+        ),
+      );
+  }
+
   Future<void> createFolder(String folderName) async {
     final folderPath = '${path ?? ''}/$folderName';
     await FileManager.createFolder(folderPath);
@@ -169,6 +200,7 @@ class _BrowsePageState extends State<BrowsePage> {
           else ...[
             GridFolders(
               parentPath: path,
+              onNotesDropped: moveNotesTo,
               isAtRoot: path?.isEmpty ?? true,
               crossAxisCount: crossAxisCount,
               onTap: onDirectoryTap,
