@@ -237,6 +237,22 @@ class Stows {
     volatile: !_isOnMainIsolate,
   );
 
+  /// Aha! copy: password locks on notes and folders (path, then a salted
+  /// hash); see NoteLocks. Kept on this tablet only.
+  final noteLocks = PlainStow(
+    'noteLocks',
+    <String>[],
+    volatile: !_isOnMainIsolate,
+  );
+
+  /// Aha! copy: whether the last pen was the brush (it saves as a fountain
+  /// pen, so the last tool alone can't tell).
+  final lastPenIsBrush = PlainStow(
+    'lastPenIsBrush',
+    false,
+    volatile: !_isOnMainIsolate,
+  );
+
   /// Aha! copy: whether the colour bar was left open.
   final colourBarOpen = PlainStow(
     'colourBarOpen',
@@ -336,6 +352,13 @@ class Stows {
       lastShapePenOptions = PlainStow.json(
         'lastShapePenProperties',
         Pen.shapePenOptions,
+        fromJson: _strokeOptionsFromJson,
+        volatile: !_isOnMainIsolate,
+      ),
+      // Aha! copy: the paintbrush's size and feel.
+      lastBrushOptions = PlainStow.json(
+        'lastBrushProperties',
+        Pen.brushOptions,
         fromJson: _strokeOptionsFromJson,
         volatile: !_isOnMainIsolate,
       );

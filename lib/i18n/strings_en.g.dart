@@ -46,6 +46,7 @@ class Translations with BaseTranslations<AppLocale, Translations> {
 	late final Translations$appInfo$en appInfo = Translations$appInfo$en.internal(_root);
 	late final Translations$update$en update = Translations$update$en.internal(_root);
 	late final Translations$editor$en editor = Translations$editor$en.internal(_root);
+	late final Translations$locks$en locks = Translations$locks$en.internal(_root);
 }
 
 // Path: common
@@ -334,6 +335,54 @@ class Translations$editor$en {
 
 	/// en: 'Saving your changes… You can safely exit the editor when it's done'
 	String get needsToSaveBeforeExiting => 'Saving your changes… You can safely exit the editor when it\'s done';
+}
+
+// Path: locks
+class Translations$locks$en {
+	Translations$locks$en.internal(this._root);
+
+	final Translations _root; // ignore: unused_field
+
+	// Translations
+
+	/// en: 'Locked. Enter the password to open it.'
+	String get locked => 'Locked. Enter the password to open it.';
+
+	/// en: 'Password'
+	String get password => 'Password';
+
+	/// en: 'Password again'
+	String get confirm => 'Password again';
+
+	/// en: 'Unlock'
+	String get unlock => 'Unlock';
+
+	/// en: 'That password isn't right'
+	String get wrongPassword => 'That password isn\'t right';
+
+	/// en: 'Lock with a password'
+	String get addTitle => 'Lock with a password';
+
+	/// en: 'Remove the lock'
+	String get removeTitle => 'Remove the lock';
+
+	/// en: 'Saber Aha will ask for this password before opening it, and hides its preview. The files aren't encrypted, so the Mac's Saber can still open them. A forgotten password can't be recovered in Saber Aha.'
+	String get addHelp => 'Saber Aha will ask for this password before opening it, and hides its preview. The files aren\'t encrypted, so the Mac\'s Saber can still open them. A forgotten password can\'t be recovered in Saber Aha.';
+
+	/// en: 'Use at least 4 characters'
+	String get tooShort => 'Use at least 4 characters';
+
+	/// en: 'The passwords don't match'
+	String get doesNotMatch => 'The passwords don\'t match';
+
+	/// en: 'Lock'
+	String get lock => 'Lock';
+
+	/// en: 'Remove lock'
+	String get remove => 'Remove lock';
+
+	/// en: 'Unlock the note before exporting it'
+	String get exportLocked => 'Unlock the note before exporting it';
 }
 
 // Path: home.newNote
@@ -1240,6 +1289,9 @@ class Translations$editor$pens$en {
 
 	/// en: 'Shape pen'
 	String get shapePen => 'Shape pen';
+
+	/// en: 'Brush'
+	String get brush => 'Brush';
 
 	/// en: 'Laser pointer'
 	String get laserPointer => 'Laser pointer';

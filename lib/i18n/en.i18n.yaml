@@ -326,6 +326,7 @@ editor:
     highlighter: Highlighter
     pencil: Pencil
     shapePen: Shape pen
+    brush: Brush
     laserPointer: Laser pointer
     fill: Fill (tap inside a shape)
   fill:
@@ -464,3 +465,17 @@ editor:
   pages: Pages
   untitled: Untitled
   needsToSaveBeforeExiting: Saving your changes… You can safely exit the editor when it's done
+locks:
+  locked: Locked. Enter the password to open it.
+  password: Password
+  confirm: Password again
+  unlock: Unlock
+  wrongPassword: That password isn't right
+  addTitle: Lock with a password
+  removeTitle: Remove the lock
+  addHelp: Saber Aha will ask for this password before opening it, and hides its preview. The files aren't encrypted, so the Mac's Saber can still open them. A forgotten password can't be recovered in Saber Aha.
+  tooShort: Use at least 4 characters
+  doesNotMatch: The passwords don't match
+  lock: Lock
+  remove: Remove lock
+  exportLocked: Unlock the note before exporting it

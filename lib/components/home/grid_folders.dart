@@ -1,10 +1,12 @@
 import 'package:cupertino_ui/cupertino_ui.dart' show CupertinoIcons;
 import 'package:flutter_staggered_grid_view/flutter_staggered_grid_view.dart';
 import 'package:material_ui/material_ui.dart';
+import 'package:saber/components/aha/lock_widgets.dart';
 import 'package:saber/components/home/delete_folder_button.dart';
 import 'package:saber/components/home/new_folder_dialog.dart';
 import 'package:saber/components/home/rename_folder_button.dart';
 import 'package:saber/components/theming/adaptive_icon.dart';
+import 'package:saber/data/aha/note_locks.dart';
 import 'package:saber/data/extensions/list_extensions.dart';
 import 'package:saber/i18n/strings.g.dart';
 
@@ -20,6 +22,7 @@ class GridFolders extends StatelessWidget {
     required this.deleteFolder,
     required this.doesFolderExist,
     required this.folders,
+    this.parentPath,
   });
 
   final bool isAtRoot;
@@ -33,6 +36,9 @@ class GridFolders extends StatelessWidget {
   final Future<void> Function(String) deleteFolder;
 
   final List<String> folders;
+
+  /// Aha! copy: the folder these are in, for their password locks.
+  final String? parentPath;
 
   @override
   Widget build(BuildContext context) {
@@ -62,6 +68,7 @@ class GridFolders extends StatelessWidget {
             isFolderEmpty: isFolderEmpty,
             deleteFolder: deleteFolder,
             onTap: onTap,
+            parentPath: parentPath,
           );
         },
       ),
@@ -79,6 +86,7 @@ class _GridFolder extends StatefulWidget {
     required this.isFolderEmpty,
     required this.deleteFolder,
     required this.onTap,
+    this.parentPath,
   }) : assert(
          (folderName == null) ^ (cardType == .realFolder),
          'Real folders must specify a folder name',
@@ -92,6 +100,11 @@ class _GridFolder extends StatefulWidget {
   final Future<bool> Function(String) isFolderEmpty;
   final Future<void> Function(String) deleteFolder;
   final Function(String) onTap;
+  final String? parentPath;
+
+  /// The lock key of this folder.
+  String get lockKey =>
+      NoteLocks.folderKey('${parentPath ?? ''}/${folderName ?? ''}');
 
   @override
   State<_GridFolder> createState() => _GridFolderState();
@@ -208,6 +221,27 @@ class _GridFolderState extends State<_GridFolder> {
                                         expanded.value = false;
                                       },
                                     ),
+                                    // Aha! copy: lock with a password.
+                                    IconButton(
+                                      key: const ValueKey('lockFolderButton'),
+                                      tooltip: NoteLocks.hasLock(widget.lockKey)
+                                          ? t.locks.removeTitle
+                                          : t.locks.addTitle,
+                                      onPressed: () async {
+                                        final changed = await showLockDialog(
+                                          context,
+                                          lockKey: widget.lockKey,
+                                          name: widget.folderName!,
+                                        );
+                                        if (changed) expanded.value = false;
+                                        if (mounted) setState(() {});
+                                      },
+                                      icon: Icon(
+                                        NoteLocks.hasLock(widget.lockKey)
+                                            ? Icons.lock_open
+                                            : Icons.lock_outline,
+                                      ),
+                                    ),
                                     DeleteFolderButton(
                                       folderName: widget.folderName!,
                                       deleteFolder: (String folderName) async {
@@ -229,7 +263,15 @@ class _GridFolderState extends State<_GridFolder> {
                 switch (widget.cardType) {
                   .backFolder => const Icon(Icons.arrow_back),
                   .newFolder => Text(t.home.newFolder.newFolder),
-                  .realFolder => Text(widget.folderName!),
+                  .realFolder => Row(
+                    mainAxisSize: .min,
+                    spacing: 4,
+                    children: [
+                      if (NoteLocks.hasLock(widget.lockKey))
+                        const Icon(Icons.lock_outline, size: 16),
+                      Flexible(child: Text(widget.folderName!)),
+                    ],
+                  ),
                 },
               ],
             ),

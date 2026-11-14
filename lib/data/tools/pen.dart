@@ -47,6 +47,23 @@ class Pen extends Tool {
       color = Color(stows.lastBallpointPenColor.value),
       toolId = .ballpointPen;
 
+  /// Aha! copy: a paintbrush: thick when pressed, thin when light, with
+  /// tapered ends. Saved as a fountain-pen stroke with brush settings, so
+  /// the standard Saber apps (and the Mac) draw it the same.
+  new brush()
+    : name = t.editor.pens.brush,
+      sizeMin = 2,
+      sizeMax = 60,
+      sizeStep = 1,
+      icon = brushIcon,
+      options = stows.lastBrushOptions.value,
+      pressureEnabled = true,
+      color = Color(stows.lastFountainPenColor.value),
+      toolId = .fountainPen;
+
+  /// Whether this is the paintbrush (it shares the fountain pen's type).
+  bool get isBrush => icon == brushIcon;
+
   final String name;
   final double sizeMin, sizeMax, sizeStep;
   late final int sizeStepsBetweenMinAndMax = ((sizeMax - sizeMin) / sizeStep)
@@ -58,13 +75,16 @@ class Pen extends Tool {
 
   static const fountainPenIcon = FontAwesomeIcons.penFancy;
   static const ballpointPenIcon = FontAwesomeIcons.pen;
+  static const brushIcon = FontAwesomeIcons.paintbrush;
 
   static Stroke? currentStroke;
   Color color;
   bool pressureEnabled;
   StrokeOptions options;
 
-  static var _currentPen = Pen.fountainPen();
+  static var _currentPen = stows.lastPenIsBrush.value
+      ? Pen.brush()
+      : Pen.fountainPen();
   static Pen get currentPen => _currentPen;
   static set currentPen(Pen currentPen) {
     assert(
@@ -117,6 +137,14 @@ class Pen extends Tool {
   static StrokeOptions get ballpointPenOptions => defaultOptions.copyWith();
   static StrokeOptions get shapePenOptions =>
       defaultOptions.copyWith(smoothing: 0, streamline: 0);
+  static StrokeOptions get brushOptions => StrokeOptions(
+    size: 14,
+    thinning: 0.75,
+    smoothing: 0.65,
+    streamline: 0.5,
+    start: StrokeEndOptions.start(taperEnabled: true),
+    end: StrokeEndOptions.end(taperEnabled: true),
+  );
   static StrokeOptions get highlighterOptions =>
       defaultOptions.copyWith(size: 50);
   static StrokeOptions get pencilOptions => defaultOptions.copyWith(

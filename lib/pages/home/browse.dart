@@ -5,6 +5,7 @@ import 'package:flutter_hooks/flutter_hooks.dart';
 import 'package:go_router/go_router.dart';
 import 'package:material_ui/material_ui.dart';
 import 'package:path/path.dart' as p;
+import 'package:saber/components/aha/lock_widgets.dart';
 import 'package:saber/components/home/delete_note_button.dart';
 import 'package:saber/components/home/export_note_button.dart';
 import 'package:saber/components/home/grid_folders.dart';
@@ -18,6 +19,7 @@ import 'package:saber/components/home/rename_note_button.dart';
 import 'package:saber/components/home/sort_button.dart';
 import 'package:saber/components/home/syncing_button.dart';
 import 'package:saber/components/theming/saber_theme.dart';
+import 'package:saber/data/aha/note_locks.dart';
 import 'package:saber/data/file_manager/file_manager.dart';
 import 'package:saber/data/prefs.dart';
 import 'package:saber/data/routes.dart';
@@ -154,57 +156,72 @@ class _BrowsePageState extends State<BrowsePage> {
             child: PathComponents(path, onPathComponentTap: onPathComponentTap),
           ),
           const SliverPadding(padding: .only(bottom: 16)),
-          GridFolders(
-            isAtRoot: path?.isEmpty ?? true,
-            crossAxisCount: crossAxisCount,
-            onTap: onDirectoryTap,
-            createFolder: createFolder,
-            doesFolderExist: (String folderName) {
-              return children?.directories.contains(folderName) ?? false;
-            },
-            renameFolder: (String oldName, String newName) async {
-              final oldPath = '${path ?? ''}/$oldName';
-              await FileManager.renameDirectory(oldPath, newName);
-              findChildrenOfPath();
-            },
-            isFolderEmpty: (String folderName) async {
-              final folderPath = '${path ?? ''}/$folderName';
-              final children = await FileManager.getChildrenOfDirectory(
-                folderPath,
-              );
-              return children?.isEmpty ?? true;
-            },
-            deleteFolder: (String folderName) async {
-              final folderPath = '${path ?? ''}/$folderName';
-              await FileManager.deleteDirectory(folderPath);
-              findChildrenOfPath();
-            },
-            folders: [
-              for (final directoryPath in children?.directories ?? const [])
-                directoryPath,
-            ],
-          ),
-          if (children == null) ...[
-            // loading
-          ] else if (children!.isEmpty) ...[
-            const SliverSafeArea(sliver: SliverToBoxAdapter(child: NoFiles())),
-          ] else ...[
-            SliverSafeArea(
-              top: false,
-              minimum: const .only(
-                top: 8,
-                // Allow space for the FloatingActionButton
-                bottom: 70,
+          if (NoteLocks.lockForFolder(path ?? '/') case final lockKey?
+              when NoteLocks.isFolderLocked(path ?? '/'))
+            // Aha! copy: a locked folder asks for its password first.
+            SliverFillRemaining(
+              hasScrollBody: false,
+              child: LockPrompt(
+                lockKey: lockKey,
+                name: (path ?? '/').split('/').last,
               ),
-              sliver: MasonryFiles(
-                crossAxisCount: crossAxisCount,
-                files: [
-                  for (final filePath in children?.files ?? const [])
-                    "${path ?? ""}/$filePath",
-                ],
-                selectedFiles: selectedFiles,
-              ),
+            )
+          else ...[
+            GridFolders(
+              parentPath: path,
+              isAtRoot: path?.isEmpty ?? true,
+              crossAxisCount: crossAxisCount,
+              onTap: onDirectoryTap,
+              createFolder: createFolder,
+              doesFolderExist: (String folderName) {
+                return children?.directories.contains(folderName) ?? false;
+              },
+              renameFolder: (String oldName, String newName) async {
+                final oldPath = '${path ?? ''}/$oldName';
+                await FileManager.renameDirectory(oldPath, newName);
+                findChildrenOfPath();
+              },
+              isFolderEmpty: (String folderName) async {
+                final folderPath = '${path ?? ''}/$folderName';
+                final children = await FileManager.getChildrenOfDirectory(
+                  folderPath,
+                );
+                return children?.isEmpty ?? true;
+              },
+              deleteFolder: (String folderName) async {
+                final folderPath = '${path ?? ''}/$folderName';
+                await FileManager.deleteDirectory(folderPath);
+                findChildrenOfPath();
+              },
+              folders: [
+                for (final directoryPath in children?.directories ?? const [])
+                  directoryPath,
+              ],
             ),
+            if (children == null) ...[
+              // loading
+            ] else if (children!.isEmpty) ...[
+              const SliverSafeArea(
+                sliver: SliverToBoxAdapter(child: NoFiles()),
+              ),
+            ] else ...[
+              SliverSafeArea(
+                top: false,
+                minimum: const .only(
+                  top: 8,
+                  // Allow space for the FloatingActionButton
+                  bottom: 70,
+                ),
+                sliver: MasonryFiles(
+                  crossAxisCount: crossAxisCount,
+                  files: [
+                    for (final filePath in children?.files ?? const [])
+                      "${path ?? ""}/$filePath",
+                  ],
+                  selectedFiles: selectedFiles,
+                ),
+              ),
+            ],
           ],
         ],
       ),
@@ -232,6 +249,17 @@ class _BrowsePageState extends State<BrowsePage> {
               DeleteNoteButton(
                 filesToDelete: selectedFiles.value,
                 unselectNotes: () => selectedFiles.value = [],
+              ),
+              // Aha! copy: lock or unlock the one selected note.
+              Collapsible(
+                axis: CollapsibleAxis.vertical,
+                collapsed: selectedFiles.value.length != 1,
+                child: LockNoteButton(
+                  notePath: selectedFiles.value.isEmpty
+                      ? ''
+                      : selectedFiles.value.first,
+                  unselectNotes: () => selectedFiles.value = [],
+                ),
               ),
               ExportNoteButton(selectedFiles: selectedFiles.value),
             ],

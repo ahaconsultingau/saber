@@ -5,6 +5,7 @@ import 'package:flutter_hooks/flutter_hooks.dart';
 import 'package:go_router/go_router.dart';
 import 'package:logging/logging.dart';
 import 'package:material_ui/material_ui.dart';
+import 'package:saber/components/aha/lock_widgets.dart';
 import 'package:saber/components/home/delete_note_button.dart';
 import 'package:saber/components/home/export_note_button.dart';
 import 'package:saber/components/home/home_layout_button.dart';
@@ -177,6 +178,17 @@ class _RecentPageState extends State<RecentPage> {
               DeleteNoteButton(
                 filesToDelete: selectedFiles.value,
                 unselectNotes: () => selectedFiles.value = [],
+              ),
+              // Aha! copy: lock or unlock the one selected note.
+              Collapsible(
+                axis: CollapsibleAxis.vertical,
+                collapsed: selectedFiles.value.length != 1,
+                child: LockNoteButton(
+                  notePath: selectedFiles.value.isEmpty
+                      ? ''
+                      : selectedFiles.value.first,
+                  unselectNotes: () => selectedFiles.value = [],
+                ),
               ),
               ExportNoteButton(selectedFiles: selectedFiles.value),
             ],

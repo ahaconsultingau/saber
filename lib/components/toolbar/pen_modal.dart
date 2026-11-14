@@ -72,6 +72,16 @@ class _PenModalState<T extends Pen> extends State<PenModal<T>> {
               ),
             ),
           ),
+          // Aha! copy: the paintbrush.
+          _PenSelector(
+            key: const ValueKey('brushPen'),
+            isSelected: Pen.currentPen.icon == Pen.brushIcon,
+            onPressed: () => setState(() {
+              widget.setTool(Pen.brush());
+            }),
+            tooltip: t.editor.pens.brush,
+            icon: const FaIcon(Pen.brushIcon),
+          ),
           _PenSelector(
             isSelected: Pen.currentPen.icon == ShapePen.shapePenIcon,
             onPressed: () => setState(() {
@@ -87,6 +97,7 @@ class _PenModalState<T extends Pen> extends State<PenModal<T>> {
 }
 
 class const _PenSelector({
+  super.key,
   required final bool isSelected,
   required final void Function() onPressed,
   required final String tooltip,

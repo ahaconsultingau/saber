@@ -13,6 +13,7 @@ import 'package:path/path.dart' as p;
 import 'package:path_provider/path_provider.dart';
 import 'package:permission_handler/permission_handler.dart';
 import 'package:saber/components/home/sort_button.dart';
+import 'package:saber/data/aha/note_locks.dart';
 import 'package:saber/data/nextcloud/saber_syncer.dart';
 import 'package:saber/data/prefs.dart';
 import 'package:saber/i18n/strings.g.dart';
@@ -37,6 +38,9 @@ class FileManager {
 
   // TODO(adil192): Implement or remove this
   static String _sanitisePath(String path) => File(path).path;
+
+  /// Aha! copy: a note's own file (not its assets).
+  static final _noteExtension = RegExp(r'\.sbn2?$');
 
   /// A regex that matches the file names/paths of asset files,
   /// including previews, e.g. `mynote.sbn2.1`.
@@ -409,6 +413,13 @@ class FileManager {
     _renameReferences(fromPath, toPath);
     broadcastFileWrite(FileOperationType.delete, fromPath);
     broadcastFileWrite(FileOperationType.write, toPath);
+    // Aha! copy: a password lock moves with its note.
+    if (_noteExtension.hasMatch(fromPath)) {
+      NoteLocks.moved(
+        fromPath.replaceFirst(_noteExtension, ''),
+        toPath.replaceFirst(_noteExtension, ''),
+      );
+    }
 
     if (alsoMoveAssets && !assetFileRegex.hasMatch(fromPath)) {
       final assets = <String>[];
@@ -456,6 +467,9 @@ class FileManager {
 
     _removeReferences(filePath);
     broadcastFileWrite(FileOperationType.delete, filePath);
+    if (_noteExtension.hasMatch(filePath)) {
+      NoteLocks.deleted(filePath.replaceFirst(_noteExtension, ''));
+    }
 
     if (alsoDeleteAssets && !assetFileRegex.hasMatch(filePath)) {
       final assets = <int>[];
@@ -517,6 +531,11 @@ class FileManager {
         directoryPath.substring(0, directoryPath.lastIndexOf('/') + 1) +
         newName;
     await directory.rename(documentsDirectory + newPath);
+    // Aha! copy: password locks move with the folder.
+    NoteLocks.moved(
+      NoteLocks.folderKey(directoryPath),
+      NoteLocks.folderKey(newPath),
+    );
 
     for (final child in children) {
       _renameReferences(directoryPath + child, newPath + child);
@@ -544,6 +563,7 @@ class FileManager {
     }
 
     await directory.delete(recursive: recursive);
+    NoteLocks.deleted(NoteLocks.folderKey(directoryPath));
   }
 
   /// Gets the children of a directory, separated into

@@ -1,6 +1,7 @@
 import 'package:flutter_hooks/flutter_hooks.dart';
 import 'package:go_router/go_router.dart';
 import 'package:material_ui/material_ui.dart';
+import 'package:saber/data/aha/note_locks.dart';
 import 'package:saber/data/file_manager/file_manager.dart';
 import 'package:saber/data/routes.dart';
 
@@ -41,6 +42,9 @@ class const _FileTreeDir({
     final children = useFuture(refreshFuture, preserveState: true).data;
 
     final colorScheme = ColorScheme.of(context);
+    // Aha! copy: a locked folder keeps its contents hidden here too.
+    useListenable(NoteLocks.changes);
+    final locked = path != null && NoteLocks.isFolderLocked(path!);
     return Column(
       crossAxisAlignment: .start,
       children: [
@@ -51,7 +55,11 @@ class const _FileTreeDir({
             child: Row(
               children: [
                 Icon(
-                  areChildrenVisible.value ? Icons.folder_open : Icons.folder,
+                  locked
+                      ? Icons.lock_outline
+                      : areChildrenVisible.value
+                      ? Icons.folder_open
+                      : Icons.folder,
                   color: colorScheme.primary,
                   size: 25,
                 ),
@@ -67,7 +75,7 @@ class const _FileTreeDir({
               ],
             ),
           ),
-        if (areChildrenVisible.value && children != null)
+        if (areChildrenVisible.value && children != null && !locked)
           Stack(
             children: [
               if (path != null)

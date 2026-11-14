@@ -16,6 +16,7 @@ import 'package:pdfrx/pdfrx.dart';
 import 'package:printing/printing.dart';
 import 'package:saber/components/canvas/pencil_shader.dart';
 import 'package:saber/components/theming/dynamic_material_app.dart';
+import 'package:saber/data/aha/note_locks.dart';
 import 'package:saber/data/file_manager/file_manager.dart';
 import 'package:saber/data/flavor_config.dart';
 import 'package:saber/data/nextcloud/nc_http_overrides.dart';
@@ -311,6 +312,7 @@ class _AppState extends State<App> {
 
   @override
   void initState() {
+    NoteLocks.watchAppLifecycle(); // Aha! copy
     setupSharingIntent();
     super.initState();
   }

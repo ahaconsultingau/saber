@@ -17,6 +17,7 @@ import 'package:material_ui/material_ui.dart';
 import 'package:path/path.dart' as p;
 import 'package:pdfrx/pdfrx.dart';
 import 'package:perfect_freehand/perfect_freehand.dart';
+import 'package:saber/components/aha/lock_widgets.dart';
 import 'package:saber/components/bookmarks/bookmarks_panel.dart';
 import 'package:saber/components/canvas/_asset_cache.dart';
 import 'package:saber/components/canvas/_stroke.dart';
@@ -37,6 +38,7 @@ import 'package:saber/components/toolbar/editor_bottom_sheet.dart';
 import 'package:saber/components/toolbar/editor_page_manager.dart';
 import 'package:saber/components/toolbar/insert_table_dialog.dart';
 import 'package:saber/components/toolbar/toolbar.dart';
+import 'package:saber/data/aha/note_locks.dart';
 import 'package:saber/data/bookmarks/note_bookmarks.dart';
 import 'package:saber/data/editor/editor_core_info.dart';
 import 'package:saber/data/editor/editor_exporter.dart';
@@ -139,7 +141,10 @@ class EditorState extends State<Editor> {
     switch (stows.lastTool.value) {
       case .fountainPen:
         if (Pen.currentPen.toolId != stows.lastTool.value) {
-          Pen.currentPen = Pen.fountainPen();
+          // The brush saves as a fountain pen too.
+          Pen.currentPen = stows.lastPenIsBrush.value
+              ? Pen.brush()
+              : Pen.fountainPen();
         }
         return Pen.currentPen;
       case .ballpointPen:
@@ -1611,8 +1616,49 @@ class EditorState extends State<Editor> {
     }
   }
 
+  /// Aha! copy: a locked note (or one in a locked folder) shows its
+  /// password prompt instead, until it's unlocked. It locks again if the
+  /// app is left for a while.
   @override
   Widget build(BuildContext context) {
+    return ListenableBuilder(
+      listenable: NoteLocks.changes,
+      builder: (context, child) {
+        final path = coreInfo.filePath;
+        final lockKey = path.isEmpty ? null : NoteLocks.lockForNote(path);
+        final locked = lockKey != null && NoteLocks.isNoteLocked(path);
+        // The note stays built underneath (hidden), so nothing it holds
+        // is thrown away while it's locked.
+        return Stack(
+          children: [
+            Visibility(visible: !locked, maintainState: true, child: child!),
+            if (locked)
+              Scaffold(
+                appBar: AppBar(
+                  leading: BackButton(
+                    onPressed: () {
+                      final navigator = Navigator.of(context);
+                      if (navigator.canPop()) {
+                        navigator.pop();
+                      } else {
+                        context.go(HomeRoutes.routes[0].path);
+                      }
+                    },
+                  ),
+                ),
+                body: LockPrompt(
+                  lockKey: lockKey,
+                  name: path.substring(path.lastIndexOf('/') + 1),
+                ),
+              ),
+          ],
+        );
+      },
+      child: Builder(builder: _buildNote),
+    );
+  }
+
+  Widget _buildNote(BuildContext context) {
     final colorScheme = ColorScheme.of(context);
     final platform = Theme.of(context).platform;
     final isToolbarVertical =
@@ -1693,6 +1739,7 @@ class EditorState extends State<Editor> {
               Pencil.currentPencil = tool;
             } else if (tool is Pen) {
               Pen.currentPen = tool;
+              stows.lastPenIsBrush.value = tool.isBrush;
             }
 
             if (mounted) setState(() {});
@@ -2514,6 +2561,7 @@ class EditorState extends State<Editor> {
     stows.lastHighlighterOptions.notifyListeners();
     stows.lastPencilOptions.notifyListeners();
     stows.lastShapePenOptions.notifyListeners();
+    stows.lastBrushOptions.notifyListeners();
 
     super.dispose();
   }

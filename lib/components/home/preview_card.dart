@@ -6,6 +6,7 @@ import 'package:saber/components/canvas/_stroke.dart';
 import 'package:saber/components/canvas/inner_canvas.dart';
 import 'package:saber/components/canvas/invert_widget.dart';
 import 'package:saber/components/home/sync_indicator.dart';
+import 'package:saber/data/aha/note_locks.dart';
 import 'package:saber/data/constants.dart';
 import 'package:saber/data/extensions/color_extensions.dart';
 import 'package:saber/data/file_manager/file_manager.dart';
@@ -128,7 +129,10 @@ class _PreviewCardState extends State<PreviewCard> {
                     ),
                   ),
                   ListenableBuilder(
-                    listenable: thumbnail,
+                    listenable: Listenable.merge([
+                      thumbnail,
+                      NoteLocks.changes,
+                    ]),
                     builder: (context, _) => AnimatedSwitcher(
                       duration: const Duration(milliseconds: 300),
                       child: ConstrainedBox(
@@ -154,7 +158,10 @@ class _PreviewCardState extends State<PreviewCard> {
                             ),
                             child: InvertWidget(
                               invert: invert,
-                              child: thumbnail.doesImageExist
+                              // Aha! copy: a locked note's preview is hidden.
+                              child: NoteLocks.isNoteLocked(widget.filePath)
+                                  ? const _LockedThumbnail()
+                                  : thumbnail.doesImageExist
                                   ? Image(
                                       image: thumbnail.image!,
                                       alignment: .topCenter,
@@ -255,6 +262,22 @@ class _PreviewCardState extends State<PreviewCard> {
     fileWriteSubscription?.cancel();
     super.dispose();
   }
+}
+
+/// Aha! copy: shown in place of a locked note's preview.
+class const _LockedThumbnail() extends StatelessWidget {
+  @override
+  Widget build(BuildContext context) => SizedBox(
+    key: const ValueKey('lockedThumbnail'),
+    height: 140,
+    child: Center(
+      child: Icon(
+        Icons.lock_outline,
+        size: 40,
+        color: ColorScheme.of(context).onSurfaceVariant,
+      ),
+    ),
+  );
 }
 
 class const _FallbackThumbnail() extends StatelessWidget {
