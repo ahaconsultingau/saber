@@ -36,6 +36,10 @@ additions below. Everything else is standard Saber.
   `https://github.com/ahaconsultingau/saber`) offers each update.
   https://github.com/ahaconsultingau/saber/releases/latest always opens the
   newest.
+- A build of a commit that changes a file in `.github/workflows/` can't
+  publish its release: GitHub refuses the new tag ("Not Found"). Keep
+  workflow changes in their own commit; then run **Build for Android** by
+  hand (Actions tab, Run workflow, this branch) to publish the app.
 - It installs as a separate app, **Saber Aha** (`com.adilhanney.saber.aha`),
   so it doesn't clash with the Play Store Saber.
 - Update checks are off, so it never prompts to install upstream Saber.
