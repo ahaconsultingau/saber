@@ -156,6 +156,7 @@ class _BrowsePageState extends State<BrowsePage> {
     final platform = Theme.of(context).platform;
     final crossAxisCount = MediaQuery.sizeOf(context).width ~/ 300 + 1;
     useListenable(stows.homeLayout);
+    useListenable(NoteLocks.changes); // Aha! copy: open once unlocked
     useOnListenableChange(stows.browseSortMetric, findChildrenOfPath);
 
     return Scaffold(

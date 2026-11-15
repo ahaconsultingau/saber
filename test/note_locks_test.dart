@@ -1,14 +1,17 @@
 import 'dart:io';
 
 import 'package:flutter_test/flutter_test.dart';
+import 'package:go_router/go_router.dart';
 import 'package:material_ui/material_ui.dart';
 import 'package:saber/components/home/preview_card.dart';
 import 'package:saber/data/aha/note_locks.dart';
 import 'package:saber/data/file_manager/file_manager.dart';
 import 'package:saber/data/flavor_config.dart';
 import 'package:saber/data/prefs.dart';
+import 'package:saber/data/routes.dart';
 import 'package:saber/i18n/strings.g.dart';
 import 'package:saber/pages/editor/editor.dart';
+import 'package:saber/pages/home/browse.dart';
 
 import 'utils/test_mock_channel_handlers.dart';
 
@@ -163,5 +166,60 @@ void main() {
     NoteLocks.unlock('/Private', 'echidna');
     await tester.pump();
     expect(find.byKey(const ValueKey('lockedThumbnail')), findsNothing);
+  });
+
+  testWidgets('A locked folder opens once its password is entered', (
+    tester,
+  ) async {
+    // Joel: "set up a password on one folder but it is not opening".
+    FileManager.documentsDirectory =
+        '$tmpDir/lockedFolder/${FileManager.appRootDirectoryPrefix}';
+    final docs = Directory(FileManager.documentsDirectory);
+    if (docs.existsSync()) docs.deleteSync(recursive: true);
+    Directory('${docs.path}/Clients').createSync(recursive: true);
+    File('${docs.path}/Clients/Bayside${Editor.extension}')
+        .writeAsBytesSync([0]);
+    BrowsePage.overrideChildren = null;
+    NoteLocks.setLock(NoteLocks.folderKey('/Clients'), 'wombat');
+    tester.view.physicalSize = const Size(1600, 2560);
+    tester.view.devicePixelRatio = 2;
+    addTearDown(tester.view.reset);
+
+    await tester.pumpWidget(
+      MaterialApp.router(
+        routerConfig: GoRouter(
+          initialLocation: HomeRoutes.browseFilePath('/Clients'),
+          routes: [
+            GoRoute(
+              path: RoutePaths.home,
+              builder: (_, _) => const BrowsePage(path: '/Clients'),
+            ),
+          ],
+        ),
+      ),
+    );
+    Future<void> settle() async {
+      for (var i = 0; i < 5; i++) {
+        await tester.runAsync(
+          () => Future.delayed(const Duration(milliseconds: 50)),
+        );
+        await tester.pump();
+      }
+      await tester.pumpAndSettle();
+    }
+
+    await settle();
+    expect(find.byKey(const ValueKey('lockPrompt')), findsOneWidget);
+    expect(find.byType(PreviewCard), findsNothing);
+
+    await tester.enterText(
+      find.byKey(const ValueKey('lockPassword')),
+      'wombat',
+    );
+    await tester.tap(find.byKey(const ValueKey('lockUnlock')));
+    await settle();
+
+    expect(find.byKey(const ValueKey('lockPrompt')), findsNothing);
+    expect(find.byType(PreviewCard), findsOneWidget);
   });
 }
