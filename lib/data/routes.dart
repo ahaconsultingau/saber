@@ -70,6 +70,17 @@ abstract class HomeRoutes {
       ),
     ),
     HomeRoute._(
+      _homeFunction({'subpage': HomePage.newDrawingSubpage}),
+      // Aha! copy: opens the New drawing sheet; see ResponsiveNavbar.
+      destination: NavigationDestination(
+        label: t.home.create.newDrawing,
+        icon: const AdaptiveIcon(
+          icon: Icons.brush_outlined,
+          cupertinoIcon: CupertinoIcons.paintbrush,
+        ),
+      ),
+    ),
+    HomeRoute._(
       _homeFunction({'subpage': HomePage.settingsSubpage}),
       destination: NavigationDestination(
         label: t.home.tabs.settings,

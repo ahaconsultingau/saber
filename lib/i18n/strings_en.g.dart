@@ -75,6 +75,7 @@ class Translations$home$en {
 
 	// Translations
 	late final Translations$home$newNote$en newNote = Translations$home$newNote$en.internal(_root);
+	late final Translations$home$newDrawing$en newDrawing = Translations$home$newDrawing$en.internal(_root);
 	late final Translations$home$tabs$en tabs = Translations$home$tabs$en.internal(_root);
 	late final Translations$home$titles$en titles = Translations$home$titles$en.internal(_root);
 	late final Translations$home$tooltips$en tooltips = Translations$home$tooltips$en.internal(_root);
@@ -319,6 +320,7 @@ class Translations$editor$en {
 	late final Translations$editor$colors$en colors = Translations$editor$colors$en.internal(_root);
 	late final Translations$editor$imageOptions$en imageOptions = Translations$editor$imageOptions$en.internal(_root);
 	late final Translations$editor$selectionBar$en selectionBar = Translations$editor$selectionBar$en.internal(_root);
+	late final Translations$editor$draw$en draw = Translations$editor$draw$en.internal(_root);
 	late final Translations$editor$penGuard$en penGuard = Translations$editor$penGuard$en.internal(_root);
 	late final Translations$editor$bookmarks$en bookmarks = Translations$editor$bookmarks$en.internal(_root);
 	late final Translations$editor$saveState$en saveState = Translations$editor$saveState$en.internal(_root);
@@ -425,6 +427,42 @@ class Translations$home$newNote$en {
 	String get skip => 'Skip';
 }
 
+// Path: home.newDrawing
+class Translations$home$newDrawing$en {
+	Translations$home$newDrawing$en.internal(this._root);
+
+	final Translations _root; // ignore: unused_field
+
+	// Translations
+
+	/// en: 'New drawing'
+	String get title => 'New drawing';
+
+	/// en: 'e.g. Logo ideas'
+	String get nameHint => 'e.g. Logo ideas';
+
+	/// en: 'Paper'
+	String get paper => 'Paper';
+
+	/// en: 'Shape'
+	String get shape => 'Shape';
+
+	/// en: 'Plain'
+	String get plain => 'Plain';
+
+	/// en: 'Portrait'
+	String get portrait => 'Portrait';
+
+	/// en: 'Landscape'
+	String get landscape => 'Landscape';
+
+	/// en: 'Square'
+	String get square => 'Square';
+
+	/// en: 'Drawing'
+	String get drawingBadge => 'Drawing';
+}
+
 // Path: home.tabs
 class Translations$home$tabs$en {
 	Translations$home$tabs$en.internal(this._root);
@@ -504,6 +542,15 @@ class Translations$home$create$en {
 
 	/// en: 'Start a note straight away (name it later)'
 	String get quickNoteTooltip => 'Start a note straight away (name it later)';
+
+	/// en: 'Draw'
+	String get draw => 'Draw';
+
+	/// en: 'Start a new drawing'
+	String get drawTooltip => 'Start a new drawing';
+
+	/// en: 'New drawing'
+	String get newDrawing => 'New drawing';
 }
 
 // Path: home.noteshelf
@@ -1469,6 +1516,33 @@ class Translations$editor$selectionBar$en {
 	String get convertToText => 'Convert to text';
 }
 
+// Path: editor.draw
+class Translations$editor$draw$en {
+	Translations$editor$draw$en.internal(this._root);
+
+	final Translations _root; // ignore: unused_field
+
+	// Translations
+
+	/// en: 'Draw'
+	String get row => 'Draw';
+
+	/// en: 'Grid'
+	String get grid => 'Grid';
+
+	/// en: 'Flip view'
+	String get flipView => 'Flip view';
+
+	/// en: 'Flipped view'
+	String get flipped => 'Flipped view';
+
+	/// en: 'Make this a drawing'
+	String get makeDrawing => 'Make this a drawing';
+
+	/// en: 'Make this a note'
+	String get makeNote => 'Make this a note';
+}
+
 // Path: editor.penGuard
 class Translations$editor$penGuard$en {
 	Translations$editor$penGuard$en.internal(this._root);
@@ -1996,4 +2070,7 @@ class Translations$editor$menu$bgPatterns$en {
 
 	/// en: 'Cornell'
 	String get cornell => 'Cornell';
+
+	/// en: 'Isometric'
+	String get isometric => 'Isometric';
 }

@@ -31,6 +31,14 @@ class ResponsiveNavbar extends HookWidget {
       NewNoteButton.createNote(context);
       return;
     }
+    // Aha! copy: the New drawing slot opens the New drawing sheet.
+    if (routes[index].path ==
+        pathToFunction(RoutePaths.home)({
+          'subpage': HomePage.newDrawingSubpage,
+        })) {
+      NewNoteButton.createDrawing(context);
+      return;
+    }
     if (index == selectedIndex) return;
 
     // if leaving whiteboard, check if saved

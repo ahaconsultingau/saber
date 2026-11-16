@@ -407,6 +407,19 @@ class Stows {
     codec: const EnumCodec(CanvasBackgroundPattern.values),
     volatile: !_isOnMainIsolate,
   );
+
+  /// Aha! copy: the paper and shape last chosen for a new drawing.
+  final newDrawingGrid = PlainStow(
+    'newDrawingGrid',
+    CanvasBackgroundPattern.none,
+    codec: const EnumCodec(CanvasBackgroundPattern.values),
+    volatile: !_isOnMainIsolate,
+  );
+  final newDrawingShape = PlainStow(
+    'newDrawingShape',
+    'portrait',
+    volatile: !_isOnMainIsolate,
+  );
   final newNoteLineHeight = PlainStow(
     'newNoteLineHeight',
     defaultLineHeight,

@@ -57,7 +57,11 @@ class Toolbar extends StatefulWidget {
     required this.exportAsPdf,
     required this.exportAsPng,
     this.sidePanelWidth = 0,
+    this.drawRow,
   });
+
+  /// Aha! copy: the Draw row, shown above the tools on drawings only.
+  final Widget? drawRow;
 
   final bool readOnly;
 
@@ -261,6 +265,7 @@ class _ToolbarState extends State<Toolbar> {
     }
 
     final bars = <Widget>[
+      ?widget.drawRow,
       ValueListenableBuilder(
         valueListenable: showExportOptions,
         builder: (context, showExportOptions, child) {

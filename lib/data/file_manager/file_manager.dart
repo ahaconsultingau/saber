@@ -46,7 +46,7 @@ class FileManager {
   /// including previews, e.g. `mynote.sbn2.1`.
   /// A note's companion files: numbered assets, the preview (`.p`) and,
   /// in the Aha! copy, its bookmarks (`.bm`).
-  static final assetFileRegex = RegExp(r'\.sbn2?\.([\dp]+|bm)$');
+  static final assetFileRegex = RegExp(r'\.sbn2?\.([\dp]+|bm|dw)$');
 
   /// Forbidden names for files and directories (on any/all platforms).
   /// These patterns match the base name only (not the full path).
@@ -431,8 +431,8 @@ class FileManager {
           break;
         }
       }
-      // The preview, and (Aha! copy) the note's bookmarks.
-      for (final assetNumber in const ['p', 'bm']) {
+      // The preview, and (Aha! copy) the note's bookmarks and drawing marker.
+      for (final assetNumber in const ['p', 'bm', 'dw']) {
         final assetFile = getFile('$fromPath.$assetNumber');
         if (assetFile.existsSync()) {
           assets.add(assetNumber);
@@ -484,6 +484,7 @@ class FileManager {
 
       final previewFile = getFile('$filePath.p');
       final bookmarksFile = getFile('$filePath.bm'); // Aha! copy
+      final drawingFile = getFile('$filePath.dw'); // Aha! copy
       await Future.wait([
         for (final assetNumber in assets)
           deleteFile('$filePath.$assetNumber', alsoDeleteAssets: false),
@@ -491,6 +492,8 @@ class FileManager {
           deleteFile('$filePath.p', alsoDeleteAssets: false),
         if (bookmarksFile.existsSync())
           deleteFile('$filePath.bm', alsoDeleteAssets: false),
+        if (drawingFile.existsSync())
+          deleteFile('$filePath.dw', alsoDeleteAssets: false),
       ]);
     }
   }

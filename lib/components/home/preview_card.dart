@@ -7,6 +7,7 @@ import 'package:saber/components/canvas/_stroke.dart';
 import 'package:saber/components/canvas/inner_canvas.dart';
 import 'package:saber/components/canvas/invert_widget.dart';
 import 'package:saber/components/home/sync_indicator.dart';
+import 'package:saber/data/aha/note_drawings.dart';
 import 'package:saber/data/aha/note_locks.dart';
 import 'package:saber/data/constants.dart';
 import 'package:saber/data/extensions/color_extensions.dart';
@@ -184,6 +185,18 @@ class _PreviewCardState extends State<PreviewCard> {
                           ),
                         ),
                       ),
+                    ),
+                  ),
+                  // Aha! copy: a small brush marks a drawing.
+                  Positioned(
+                    top: 8,
+                    right: 8,
+                    child: ListenableBuilder(
+                      listenable: thumbnail,
+                      builder: (context, _) =>
+                          NoteDrawings.isDrawing(widget.filePath)
+                          ? const _DrawingBadge()
+                          : const SizedBox.shrink(),
                     ),
                   ),
                   Positioned.fill(
@@ -388,4 +401,33 @@ class _ThumbnailState extends ChangeNotifier {
     null => false,
     _ => true,
   };
+}
+
+/// Aha! copy: the brush badge on a drawing's preview.
+class _DrawingBadge extends StatelessWidget {
+  const new();
+
+  @override
+  Widget build(BuildContext context) {
+    final colorScheme = ColorScheme.of(context);
+    return Tooltip(
+      message: t.home.newDrawing.drawingBadge,
+      child: DecoratedBox(
+        key: const ValueKey('drawingBadge'),
+        decoration: BoxDecoration(
+          color: colorScheme.secondaryContainer,
+          shape: BoxShape.circle,
+          boxShadow: const [BoxShadow(color: Colors.black26, blurRadius: 4)],
+        ),
+        child: Padding(
+          padding: const .all(6),
+          child: Icon(
+            Icons.brush,
+            size: 16,
+            color: colorScheme.onSecondaryContainer,
+          ),
+        ),
+      ),
+    );
+  }
 }

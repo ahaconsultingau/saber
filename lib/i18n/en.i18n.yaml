@@ -13,6 +13,16 @@ home:
     lineStyleHelp: Page colour and starting pen come from Settings › New pages
     create: Create
     skip: Skip
+  newDrawing:
+    title: New drawing
+    nameHint: e.g. Logo ideas
+    paper: Paper
+    shape: Shape
+    plain: Plain
+    portrait: Portrait
+    landscape: Landscape
+    square: Square
+    drawingBadge: Drawing
   tabs:
     home: Home
     browse: Browse
@@ -32,6 +42,9 @@ home:
     importNote: Import note
     quickNote: Quick note
     quickNoteTooltip: Start a note straight away (name it later)
+    draw: Draw
+    drawTooltip: Start a new drawing
+    newDrawing: New drawing
   movedNotes: Moved $n to $folder
   noteshelf:
     importing: Importing from Noteshelf…
@@ -375,6 +388,13 @@ editor:
     delete: Delete
     duplicate: Duplicate
     convertToText: Convert to text
+  draw:
+    row: Draw
+    grid: Grid
+    flipView: Flip view
+    flipped: Flipped view
+    makeDrawing: Make this a drawing
+    makeNote: Make this a note
   penGuard:
     hint: Pen near · touch paused
     backPaused: Back is paused while you write. Use the back arrow at the top to leave.
@@ -446,6 +466,7 @@ editor:
       staffs: Staffs
       tablature: Tablature
       cornell: Cornell
+      isometric: Isometric
   photoPdfError:
     title: Error
     message: "PDF files cannot be added as image. Use \"@:editor.menu.import > PDF\" for that."

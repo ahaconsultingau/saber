@@ -23,10 +23,15 @@ class HomePage extends StatefulWidget {
   static const browseSubpage = 'browse';
   static const whiteboardSubpage = 'whiteboard';
   static const settingsSubpage = 'settings';
+
+  /// Aha! copy: a side bar slot that opens the New drawing sheet (never a
+  /// page of its own; see ResponsiveNavbar).
+  static const newDrawingSubpage = 'new-drawing';
   static const List<String> subpages = [
     recentSubpage,
     browseSubpage,
     whiteboardSubpage,
+    newDrawingSubpage,
     settingsSubpage,
   ];
 }

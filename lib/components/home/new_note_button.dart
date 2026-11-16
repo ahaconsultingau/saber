@@ -3,6 +3,7 @@ import 'dart:io';
 import 'package:file_picker/file_picker.dart';
 import 'package:go_router/go_router.dart';
 import 'package:material_ui/material_ui.dart';
+import 'package:saber/components/home/new_drawing_dialog.dart';
 import 'package:saber/components/home/new_note_dialog.dart';
 import 'package:saber/data/aha/noteshelf_import.dart';
 import 'package:saber/data/editor/editor_core_info.dart';
@@ -44,6 +45,20 @@ class NewNoteButton extends StatefulWidget {
     context.push(RoutePaths.editFilePath(path));
   }
 
+  /// Aha! copy: asks for the new drawing's name, folder, paper and shape,
+  /// then opens it.
+  static Future<void> createDrawing(
+    BuildContext context, {
+    String? folder,
+  }) async {
+    final newFilePath = await NewDrawingDialog.show(
+      context,
+      folder: folder == null || folder.isEmpty ? '/' : folder,
+    );
+    if (newFilePath == null || !context.mounted) return;
+    context.push(RoutePaths.editFilePath(newFilePath));
+  }
+
   @override
   State<NewNoteButton> createState() => _NewNoteButtonState();
 }
@@ -77,6 +92,19 @@ class _NewNoteButtonState extends State<NewNoteButton> {
           isExtended: MediaQuery.sizeOf(context).width >= 600,
           icon: const Icon(Icons.bolt),
           label: Text(t.home.create.quickNote),
+        ),
+        // Aha! copy: start a drawing (the drawing tools show only there).
+        FloatingActionButton.extended(
+          key: const ValueKey('drawButton'),
+          heroTag: null,
+          tooltip: t.home.create.drawTooltip,
+          backgroundColor: colorScheme.secondaryContainer,
+          foregroundColor: colorScheme.onSecondaryContainer,
+          onPressed: () =>
+              NewNoteButton.createDrawing(context, folder: widget.path),
+          isExtended: MediaQuery.sizeOf(context).width >= 600,
+          icon: const Icon(Icons.brush),
+          label: Text(t.home.create.draw),
         ),
         FloatingActionButton.extended(
           heroTag: null,

@@ -38,7 +38,11 @@ enum CanvasBackgroundPattern(
   tablature('tablature'),
 
   /// Cornell notes
-  cornell('cornell');
+  cornell('cornell'),
+
+  /// Aha! copy: an isometric (triangle) grid, for drawings. The standard
+  /// Saber apps don't know it and show a plain page.
+  isometric('aha-isometric', requiresClipping: true);
 
   static CanvasBackgroundPattern fromName(String? name) {
     return values.firstWhere(

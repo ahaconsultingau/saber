@@ -34,10 +34,12 @@ import 'package:saber/components/theming/dynamic_material_app.dart';
 import 'package:saber/components/theming/saber_theme.dart';
 import 'package:saber/components/toolbar/color_bar.dart';
 import 'package:saber/components/toolbar/convert_to_text_dialog.dart';
+import 'package:saber/components/toolbar/draw_row.dart';
 import 'package:saber/components/toolbar/editor_bottom_sheet.dart';
 import 'package:saber/components/toolbar/editor_page_manager.dart';
 import 'package:saber/components/toolbar/insert_table_dialog.dart';
 import 'package:saber/components/toolbar/toolbar.dart';
+import 'package:saber/data/aha/note_drawings.dart';
 import 'package:saber/data/aha/note_locks.dart';
 import 'package:saber/data/bookmarks/note_bookmarks.dart';
 import 'package:saber/data/editor/editor_core_info.dart';
@@ -63,6 +65,7 @@ import 'package:saber/data/tools/shape_pen.dart';
 import 'package:saber/data/tools/table_lines.dart';
 import 'package:saber/i18n/strings.g.dart';
 import 'package:saber/pages/home/whiteboard.dart';
+import 'package:sbn/canvas_background_pattern.dart';
 import 'package:sbn/change.dart';
 import 'package:sbn/tool_id.dart';
 import 'package:super_clipboard/super_clipboard.dart';
@@ -243,6 +246,19 @@ class EditorState extends State<Editor> {
 
     bookmarks = await NoteBookmarks.load(coreInfo.filePath, coreInfo.pages);
 
+    // Aha! copy: drawings (see NoteDrawings).
+    if (coreInfo.newDrawing case final newDrawing?) {
+      drawing = newDrawing;
+      _drawingSaved = false;
+      if (!coreInfo.readOnly) {
+        // A new drawing starts with the brush in hand.
+        Pen.currentPen = Pen.brush();
+        currentTool = Pen.currentPen;
+      }
+    } else if (coreInfo.filePath.isNotEmpty) {
+      drawing = await NoteDrawings.load(coreInfo.filePath);
+    }
+
     if (coreInfo.isEmpty) {
       createPage(-1);
     } else {
@@ -317,7 +333,7 @@ class EditorState extends State<Editor> {
   /// plus an extra blank page
   void createPage(int pageIndex) {
     while (pageIndex >= coreInfo.pages.length - 1) {
-      final page = EditorPage();
+      final page = EditorPage(size: _newPageSize);
       coreInfo.pages.add(page);
       listenToQuillChanges(page.quill, coreInfo.pages.length - 1);
     }
@@ -1209,6 +1225,11 @@ class EditorState extends State<Editor> {
       // deleted), so rewrite the bookmarks with the note, before it
       // counts as saved (back leaves as soon as it does).
       if (bookmarks.isNotEmpty) await _saveBookmarks();
+      // Aha! copy: a new drawing's marker is written with its first save.
+      if (drawing != null && !_drawingSaved) {
+        await NoteDrawings.save(coreInfo.filePath, drawing!);
+        _drawingSaved = true;
+      }
       savingState.value = .saved;
       history.markLastChangeAsSaved();
     } catch (e, st) {
@@ -1729,6 +1750,15 @@ class EditorState extends State<Editor> {
         bottom: stows.editorToolbarAlignment.value != AxisDirection.up,
         child: Toolbar(
           readOnly: coreInfo.readOnly,
+          drawRow: drawing == null || coreInfo.readOnly
+              ? null
+              : DrawRow(
+                  axis: isToolbarVertical ? Axis.vertical : Axis.horizontal,
+                  grid: coreInfo.backgroundPattern,
+                  setGrid: setDrawingGrid,
+                  flipped: flipView,
+                  toggleFlip: () => setState(() => flipView = !flipView),
+                ),
           // The colour bar keeps clear of the Pages or Bookmarks panel.
           sidePanelWidth: showPages || showBookmarks
               ? FloatingSidePanel.widthFor(MediaQuery.sizeOf(context).width)
@@ -2228,6 +2258,61 @@ class EditorState extends State<Editor> {
 
   var _leaving = false;
 
+  /// Aha! copy: the note's drawing settings, or null for an ordinary note.
+  DrawingSettings? drawing;
+  var _drawingSaved = true;
+
+  /// Aha! copy: whether the view is mirrored left to right (a drawing aid;
+  /// the drawing itself isn't changed).
+  var flipView = false;
+
+  /// New pages match a drawing's shape; notes get Saber's usual page.
+  Size get _newPageSize => drawing?.shape.pageSize ?? EditorPage.defaultSize;
+
+  /// Aha! copy: shows [pattern] as the drawing's guide grid (undoable).
+  void setDrawingGrid(CanvasBackgroundPattern pattern) => setState(() {
+    if (coreInfo.readOnly || drawing == null) return;
+    final previous = coreInfo.backgroundPattern;
+    if (previous == pattern) return;
+    coreInfo.backgroundPattern = pattern;
+    drawing!.grid = pattern;
+    _drawingSaved = false;
+    history.recordChange(
+      HistoricBackgroundPatternChange(
+        pageIndex: currentPageIndex,
+        change: Change(previous: previous, current: pattern),
+      ),
+    );
+    autosaveAfterDelay();
+  });
+
+  /// Aha! copy: turns this note into a drawing, or back into a note. Only
+  /// the companion file changes; the pages and strokes stay as they are.
+  Future<void> setIsDrawing(bool isDrawing) async {
+    if (coreInfo.readOnly || (drawing != null) == isDrawing) return;
+    if (isDrawing) {
+      final size = coreInfo.pages.firstOrNull?.size ?? EditorPage.defaultSize;
+      drawing = DrawingSettings(
+        shape:
+            DrawingShape.values
+                .where((shape) => shape.pageSize == size)
+                .firstOrNull ??
+            .portrait,
+        grid: coreInfo.backgroundPattern,
+      );
+      if (FileManager.doesFileExist(coreInfo.filePath + Editor.extension)) {
+        await NoteDrawings.save(coreInfo.filePath, drawing!);
+      } else {
+        _drawingSaved = false;
+      }
+    } else {
+      drawing = null;
+      flipView = false;
+      await NoteDrawings.remove(coreInfo.filePath);
+    }
+    if (mounted) setState(() {});
+  }
+
   void _snackBarBackPausedWhileWriting() {
     ScaffoldMessenger.of(context)
       ..hideCurrentSnackBar()
@@ -2296,10 +2381,16 @@ class EditorState extends State<Editor> {
       invert: invert,
       coreInfo: coreInfo,
       currentPageIndex: currentPageIndex,
+      isDrawing: drawing != null,
+      setIsDrawing: coreInfo.readOnly ? null : setIsDrawing,
       setBackgroundPattern: (pattern) => setState(() {
         if (coreInfo.readOnly) return;
         final previous = coreInfo.backgroundPattern;
         coreInfo.backgroundPattern = pattern;
+        if (drawing != null) {
+          drawing!.grid = pattern;
+          _drawingSaved = false;
+        }
         stows.lastBackgroundPattern.value = pattern;
         history.recordChange(
           HistoricBackgroundPatternChange(
@@ -2372,6 +2463,19 @@ class EditorState extends State<Editor> {
     final currentStroke = Pen.currentStroke?.pageIndex == pageIndex
         ? Pen.currentStroke
         : null;
+    // Aha! copy: Flip view mirrors each page (pointer positions are
+    // mirrored back, so drawing still lands under the pen).
+    return Transform(
+      key: ValueKey('pageFlip$pageIndex'),
+      transform: flipView
+          ? Matrix4.diagonal3Values(-1, 1, 1)
+          : Matrix4.identity(),
+      alignment: Alignment.center,
+      child: _pageCanvas(page, pageIndex, currentStroke),
+    );
+  }
+
+  Widget _pageCanvas(EditorPage page, int pageIndex, Stroke? currentStroke) {
     return Canvas(
       path: coreInfo.filePath,
       page: page,
@@ -2462,7 +2566,7 @@ class EditorState extends State<Editor> {
 
   void insertPageAfter(int pageIndex) => setState(() {
     if (coreInfo.readOnly) return;
-    final page = EditorPage();
+    final page = EditorPage(size: _newPageSize);
     coreInfo.pages.insert(pageIndex + 1, page);
     listenToQuillChanges(page.quill, pageIndex + 1);
     history.recordChange(

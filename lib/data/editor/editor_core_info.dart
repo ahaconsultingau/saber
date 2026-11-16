@@ -12,6 +12,7 @@ import 'package:path/path.dart' as p;
 import 'package:saber/components/canvas/_asset_cache.dart';
 import 'package:saber/components/canvas/_stroke.dart';
 import 'package:saber/components/canvas/image/editor_image.dart';
+import 'package:saber/data/aha/note_drawings.dart';
 import 'package:saber/data/editor/page.dart';
 import 'package:saber/data/file_manager/file_manager.dart';
 import 'package:saber/data/flavor_config.dart';
@@ -88,6 +89,13 @@ class EditorCoreInfo {
   /// so the editor can pick the starting pen from Settings › New pages.
   var createdFresh = false;
 
+  /// Aha! copy: the settings chosen in the New drawing sheet, used once by
+  /// the next new note, which then becomes a drawing.
+  static DrawingSettings? nextNewDrawing;
+
+  /// Aha! copy: set on a new note made from the New drawing sheet.
+  DrawingSettings? newDrawing;
+
   static final placeholder =
       EditorCoreInfo._(
         filePath: '',
@@ -128,6 +136,12 @@ class EditorCoreInfo {
       pages = [],
       assetCache = AssetCache() {
     createdFresh = readOnlyReason == null;
+    if (createdFresh && nextNewDrawing != null) {
+      newDrawing = nextNewDrawing;
+      backgroundPattern = newDrawing!.grid;
+      backgroundColor = null; // drawings start on white paper
+    }
+    nextNewDrawing = null;
   }
 
   new _({
