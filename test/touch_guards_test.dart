@@ -243,4 +243,85 @@ void main() {
     expect(find.byIcon(Icons.swipe_up), findsNothing);
     expect(find.byIcon(Icons.pinch), findsNothing);
   });
+
+  group('Wrist on the page while writing', () {
+    // Joel, 16 Nov: "the wrist/pressure protections are not working".
+    // The wrist (touch) and the pen were one gesture, so a wrist already
+    // down turned the pen stroke into a scroll or zoom, or dropped it.
+    Future<int> writeWithWristDown(
+      WidgetTester tester, {
+      bool moveWrist = false,
+    }) async {
+      final page = (tester.state<EditorState>(find.byType(Editor)))
+          .coreInfo
+          .pages[0];
+      final before = page.strokes.length;
+      final wrist = await tester.startGesture(
+        centre + const Offset(150, 250),
+        kind: PointerDeviceKind.touch,
+        pointer: 1,
+      );
+      await tester.pump(const Duration(milliseconds: 100));
+      const stylus = PointerDeviceKind.stylus;
+      await tester.sendEventToBinding(
+        PointerHoverEvent(pointer: 2, kind: stylus, position: centre),
+      );
+      await tester.pump(const Duration(milliseconds: 50));
+      await tester.sendEventToBinding(
+        PointerDownEvent(
+          pointer: 2,
+          kind: stylus,
+          position: centre,
+          pressure: 0.6,
+          pressureMax: 1,
+        ),
+      );
+      var at = centre;
+      for (var i = 1; i <= 10; i++) {
+        const step = Offset(15, 4);
+        at += step;
+        await tester.sendEventToBinding(
+          PointerMoveEvent(
+            pointer: 2,
+            kind: stylus,
+            position: at,
+            delta: step,
+            pressure: 0.6,
+            pressureMax: 1,
+          ),
+        );
+        if (moveWrist) await wrist.moveBy(const Offset(6, -8));
+        await tester.pump(const Duration(milliseconds: 16));
+      }
+      await tester.sendEventToBinding(
+        PointerUpEvent(pointer: 2, kind: stylus, position: at),
+      );
+      await wrist.up();
+      await tester.pumpAndSettle();
+      return page.strokes.length - before;
+    }
+
+    testWidgets('The pen writes with the wrist already down', (tester) async {
+      await openEditor(tester, 'wristDown');
+      final start = transform(tester);
+      expect(await writeWithWristDown(tester), 1);
+      expect(transform(tester), start, reason: 'the page stays put');
+    });
+
+    testWidgets('The pen writes while the wrist slides', (tester) async {
+      final editor = await openEditor(tester, 'wristSlides');
+      final start = transform(tester);
+      expect(await writeWithWristDown(tester, moveWrist: true), 1);
+      expect(transform(tester), start, reason: 'the page stays put');
+      final stroke = editor.coreInfo.pages[0].strokes.last;
+      expect(stroke.pressureEnabled, isTrue, reason: 'pen pressure kept');
+    });
+
+    testWidgets('It also works with the pen guard off', (tester) async {
+      stows.penGuard.value = false;
+      addTearDown(() => stows.penGuard.value = true);
+      await openEditor(tester, 'wristNoGuard');
+      expect(await writeWithWristDown(tester), 1);
+    });
+  });
 }

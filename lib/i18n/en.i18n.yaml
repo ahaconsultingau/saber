@@ -377,6 +377,7 @@ editor:
     convertToText: Convert to text
   penGuard:
     hint: Pen near · touch paused
+    backPaused: Back is paused while you write. Use the back arrow at the top to leave.
   bookmarks:
     title: Bookmarks
     newMeeting: New meeting

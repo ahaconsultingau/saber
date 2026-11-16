@@ -520,7 +520,14 @@ class EditorState extends State<Editor> {
         .notifyListenersPlease(); // un-select active image
 
     _lastSeenPointerCountTimer?.cancel();
-    if (lastSeenPointerCount >= 2) {
+    // Aha! copy: the pen has its own gesture (fingers never join it), so a
+    // wrist or a scroll just before doesn't make a pen stroke a zoom.
+    final isPen =
+        details.kind == PointerDeviceKind.stylus ||
+        details.kind == PointerDeviceKind.invertedStylus;
+    if (isPen) {
+      lastSeenPointerCount = 1;
+    } else if (lastSeenPointerCount >= 2) {
       // was a zoom gesture, ignore
       lastSeenPointerCount = lastSeenPointerCount;
       return false;
@@ -544,7 +551,8 @@ class EditorState extends State<Editor> {
 
     if (currentTool == Tool.textEditing) {
       return false;
-    } else if (stows.editorFingerDrawing.value ||
+    } else if (isPen ||
+        stows.editorFingerDrawing.value ||
         currentPointerKind == PointerDeviceKind.stylus ||
         currentPointerKind == PointerDeviceKind.invertedStylus ||
         currentPressure != null) {
@@ -1963,9 +1971,19 @@ class EditorState extends State<Editor> {
       builder: (context, savingState, child) {
         // don't allow user to go back until saving is done
         return PopScope(
-          canPop: savingState == .saved,
+          // Aha! copy: back is always handled here (see below).
+          canPop: false,
           onPopInvokedWithResult: (didPop, _) {
             if (didPop) return;
+            // Aha! copy: a wrist on the edge of the screen while writing
+            // reads as Android's swipe back, which closed the note (and a
+            // second one closed the app). Back is ignored while the pen is
+            // in use; the back arrow at the top still leaves.
+            if (_canvasGestureDetectorKey.currentState?.penWasJustNear ??
+                false) {
+              _snackBarBackPausedWhileWriting();
+              return;
+            }
             // Aha! copy: one tap on back saves, waits, then leaves.
             _saveThenLeave();
           },
@@ -2209,6 +2227,17 @@ class EditorState extends State<Editor> {
   }
 
   var _leaving = false;
+
+  void _snackBarBackPausedWhileWriting() {
+    ScaffoldMessenger.of(context)
+      ..hideCurrentSnackBar()
+      ..showSnackBar(
+        SnackBar(
+          content: Text(t.editor.penGuard.backPaused),
+          duration: const Duration(seconds: 2),
+        ),
+      );
+  }
 
   /// Saves now (or waits for the save in progress), then leaves the editor.
   /// If the save fails, stays and says so.

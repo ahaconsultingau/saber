@@ -1479,6 +1479,9 @@ class Translations$editor$penGuard$en {
 
 	/// en: 'Pen near · touch paused'
 	String get hint => 'Pen near · touch paused';
+
+	/// en: 'Back is paused while you write. Use the back arrow at the top to leave.'
+	String get backPaused => 'Back is paused while you write. Use the back arrow at the top to leave.';
 }
 
 // Path: editor.bookmarks

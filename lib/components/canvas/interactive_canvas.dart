@@ -758,6 +758,60 @@ class _InteractiveCanvasViewerState extends State<InteractiveCanvasViewer>
       _gestureKind == PointerDeviceKind.touch &&
       (widget.shouldIgnoreTouch?.call() ?? false);
 
+  static const _penDevices = {
+    PointerDeviceKind.stylus,
+    PointerDeviceKind.invertedStylus,
+  };
+  static final _nonPenDevices = PointerDeviceKind.values.toSet()
+    ..removeAll(_penDevices);
+
+  /// Aha! copy: whether a pen gesture or a finger (or mouse) gesture is in
+  /// progress, and whether the finger gesture has been set aside because
+  /// the pen came down.
+  var _penGestureActive = false;
+  var _touchGestureActive = false;
+  var _touchGestureSetAside = false;
+
+  void _onPenScaleStart(ScaleStartDetails details) {
+    if (_touchGestureActive && !_touchGestureSetAside) {
+      // A wrist or finger was already down: finish its gesture so the pen
+      // starts cleanly, and ignore it until it lifts.
+      _onScaleEnd(ScaleEndDetails());
+      _touchGestureSetAside = true;
+    }
+    _penGestureActive = true;
+    _onScaleStart(details);
+  }
+
+  void _onPenScaleUpdate(ScaleUpdateDetails details) {
+    if (_penGestureActive) _onScaleUpdate(details);
+  }
+
+  void _onPenScaleEnd(ScaleEndDetails details) {
+    if (!_penGestureActive) return;
+    _penGestureActive = false;
+    _onScaleEnd(details);
+  }
+
+  void _onTouchScaleStart(ScaleStartDetails details) {
+    _touchGestureActive = true;
+    _touchGestureSetAside = _penGestureActive;
+    if (!_touchGestureSetAside) _onScaleStart(details);
+  }
+
+  void _onTouchScaleUpdate(ScaleUpdateDetails details) {
+    if (!_touchGestureSetAside) _onScaleUpdate(details);
+  }
+
+  void _onTouchScaleEnd(ScaleEndDetails details) {
+    _touchGestureActive = false;
+    if (_touchGestureSetAside) {
+      _touchGestureSetAside = false;
+      return;
+    }
+    _onScaleEnd(details);
+  }
+
   // Handle the start of a gesture. All of pan, scale, and rotate are handled
   // with GestureDetector's scale gesture.
   void _onScaleStart(ScaleStartDetails details) {
@@ -821,12 +875,16 @@ class _InteractiveCanvasViewerState extends State<InteractiveCanvasViewer>
       }
       if (!_scrollLocked) {
         final newType = _getGestureType(details);
-        if (newType == _GestureType.scale) {
+        if (newType == _GestureType.scale && details.scale > 0.01) {
           // Start zooming from where we are, without a jump.
           _scaleStart = scale / details.scale;
           _referenceFocalPoint = focalPointScene;
+          _gestureType = newType;
+        } else if (newType != _GestureType.scale) {
+          // (A scale near 0, both fingers on one spot, would make the page
+          // infinitely big: it stays what it was.)
+          _gestureType = newType;
         }
-        _gestureType = newType;
       }
     } else {
       _gestureType ??= _getGestureType(details);
@@ -1188,6 +1246,49 @@ class _InteractiveCanvasViewerState extends State<InteractiveCanvasViewer>
       );
     }
 
+    if (widget.shouldIgnoreTouch != null) {
+      // Aha! copy: the pen and fingers are tracked as separate gestures, so
+      // a wrist or palm already on the page doesn't join the pen's gesture
+      // (which turned the stroke into a scroll or zoom, or dropped it).
+      return Listener(
+        key: _parentKey,
+        onPointerSignal: _receivedPointerSignal,
+        child: RawGestureDetector(
+          behavior: HitTestBehavior.opaque,
+          gestures: {
+            _PenScaleGestureRecognizer:
+                GestureRecognizerFactoryWithHandlers<
+                  _PenScaleGestureRecognizer
+                >(
+                  () => _PenScaleGestureRecognizer(debugOwner: this),
+                  (recognizer) => recognizer
+                    ..onStart = _onPenScaleStart
+                    ..onUpdate = _onPenScaleUpdate
+                    ..onEnd = _onPenScaleEnd,
+                ),
+            ScaleGestureRecognizer:
+                GestureRecognizerFactoryWithHandlers<ScaleGestureRecognizer>(
+                  () => ScaleGestureRecognizer(
+                    debugOwner: this,
+                    supportedDevices: _nonPenDevices,
+                  ),
+                  (recognizer) => recognizer
+                    ..onStart = _onTouchScaleStart
+                    ..onUpdate = _onTouchScaleUpdate
+                    ..onEnd = _onTouchScaleEnd
+                    ..trackpadScrollCausesScale =
+                        widget.trackpadScrollCausesScale
+                    ..trackpadScrollToScaleFactor = Offset(
+                      0,
+                      -1 / widget.scaleFactor,
+                    ),
+                ),
+          },
+          child: child,
+        ),
+      );
+    }
+
     return Listener(
       key: _parentKey,
       onPointerSignal: _receivedPointerSignal,
@@ -1362,4 +1463,11 @@ Axis? _getPanAxis(Offset point1, Offset point2) {
   final double x = point2.dx - point1.dx;
   final double y = point2.dy - point1.dy;
   return x.abs() > y.abs() ? Axis.horizontal : Axis.vertical;
+}
+
+/// Aha! copy: the pen's own scale gesture, so fingers on the page don't
+/// join it.
+class _PenScaleGestureRecognizer extends ScaleGestureRecognizer {
+  new({super.debugOwner})
+    : super(supportedDevices: _InteractiveCanvasViewerState._penDevices);
 }

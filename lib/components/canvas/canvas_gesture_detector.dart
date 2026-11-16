@@ -429,14 +429,26 @@ class CanvasGestureDetectorState extends State<CanvasGestureDetector> {
   /// Whether touch on the page should be ignored right now: the pen is near
   /// or was lifted less than [stows.penGuardHoldMs] ago.
   bool _shouldIgnoreTouch() {
+    final ignore = _penIsNear();
+    if (ignore) _showGuardHint();
+    return ignore;
+  }
+
+  /// Aha! copy: whether the pen was near the page in the last moment. The
+  /// editor ignores Android's back gesture then: a wrist resting on the
+  /// edge of the screen while writing reads as a swipe back.
+  bool get penWasJustNear {
+    final seen = _lastStylusSeen;
+    return seen != null &&
+        DateTime.now().difference(seen) < const Duration(milliseconds: 1500);
+  }
+
+  bool _penIsNear() {
     if (!stows.penGuard.value) return false;
     final seen = _lastStylusSeen;
     if (seen == null) return false;
-    final ignore =
-        DateTime.now().difference(seen).inMilliseconds <
+    return DateTime.now().difference(seen).inMilliseconds <
         stows.penGuardHoldMs.value;
-    if (ignore) _showGuardHint();
-    return ignore;
   }
 
   void _showGuardHint() {
@@ -456,6 +468,10 @@ class CanvasGestureDetectorState extends State<CanvasGestureDetector> {
     if (isStylus && event is PointerDownEvent) {
       _detectStylusButton(event);
     }
+    // Aha! copy: a wrist moving while the pen writes mustn't take over the
+    // pen's type and pressure (a stroke then read as a finger, or lost its
+    // pressure).
+    if (!isStylus && _penIsNear()) return;
 
     final double? pressure;
     if (isStylus) {
@@ -512,6 +528,8 @@ class CanvasGestureDetectorState extends State<CanvasGestureDetector> {
     if (event.kind == PointerDeviceKind.stylus ||
         event.kind == PointerDeviceKind.invertedStylus) {
       _lastStylusSeen = DateTime.now();
+    } else if (_penIsNear()) {
+      return; // as above: a wrist lifting doesn't change the pen's data
     }
     widget.updatePointerData(event.kind, null);
     if (stylusButtonWasPressed) {
