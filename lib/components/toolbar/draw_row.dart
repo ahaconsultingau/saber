@@ -1,4 +1,5 @@
 import 'package:material_ui/material_ui.dart';
+import 'package:saber/components/toolbar/toolbar.dart' show ToolColours;
 import 'package:saber/i18n/extensions/canvas_background_pattern_localized.dart';
 import 'package:saber/i18n/strings.g.dart';
 import 'package:sbn/canvas_background_pattern.dart';
@@ -83,7 +84,9 @@ class DrawRow extends StatelessWidget {
           ),
           FilterChip(
             key: const ValueKey('drawLayers'),
-            avatar: layersOpen ? null : const Icon(Icons.layers, size: 18),
+            avatar: layersOpen
+                ? null
+                : const Icon(Icons.layers, size: 18, color: ToolColours.table),
             label: Text(
               activeLayerName == null
                   ? t.editor.draw.layers
@@ -94,7 +97,13 @@ class DrawRow extends StatelessWidget {
           ),
           FilterChip(
             key: const ValueKey('drawPick'),
-            avatar: picking ? null : const Icon(Icons.colorize, size: 18),
+            avatar: picking
+                ? null
+                : const Icon(
+                    Icons.colorize,
+                    size: 18,
+                    color: ToolColours.eraser,
+                  ),
             label: Text(t.editor.draw.pickColour),
             tooltip: t.editor.draw.pickColourHint,
             selected: picking,
@@ -103,7 +112,11 @@ class DrawRow extends StatelessWidget {
           if (!hasTracing)
             ActionChip(
               key: const ValueKey('drawTracing'),
-              avatar: const Icon(Icons.add_photo_alternate_outlined, size: 18),
+              avatar: const Icon(
+                Icons.add_photo_alternate_outlined,
+                size: 18,
+                color: ToolColours.photo,
+              ),
               label: Text(t.editor.draw.tracingImage),
               onPressed: addTracing,
             )
@@ -164,13 +177,19 @@ class DrawRow extends StatelessWidget {
                   ),
               ],
               child: Chip(
-                avatar: const Icon(Icons.grid_4x4, size: 18),
+                avatar: const Icon(
+                  Icons.grid_4x4,
+                  size: 18,
+                  color: ToolColours.text,
+                ),
                 label: Text(t.editor.draw.grid),
               ),
             ),
           FilterChip(
             key: const ValueKey('drawFlip'),
-            avatar: flipped ? null : const Icon(Icons.flip, size: 18),
+            avatar: flipped
+                ? null
+                : const Icon(Icons.flip, size: 18, color: ToolColours.fill),
             label: Text(t.editor.draw.flipView),
             selected: flipped,
             onSelected: (_) => toggleFlip(),

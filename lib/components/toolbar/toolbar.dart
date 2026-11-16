@@ -436,7 +436,8 @@ class _ToolbarState extends State<Toolbar> {
                   }
                 },
                 padding: buttonPadding,
-                child: UniIcon(Pen.currentPen.icon, size: 16),
+                accent: ToolColours.pen,
+                child: UniIcon(Pen.currentPen.icon, size: 18),
               ),
               ToolbarIconButton(
                 tooltip: t.editor.pens.pencil,
@@ -455,7 +456,8 @@ class _ToolbarState extends State<Toolbar> {
                   }
                 },
                 padding: buttonPadding,
-                child: const FaIcon(Pencil.pencilIcon, size: 16),
+                accent: ToolColours.pencil,
+                child: const FaIcon(Pencil.pencilIcon, size: 18),
               ),
               ToolbarIconButton(
                 tooltip: t.editor.pens.highlighter,
@@ -474,7 +476,8 @@ class _ToolbarState extends State<Toolbar> {
                   }
                 },
                 padding: buttonPadding,
-                child: const FaIcon(Highlighter.highlighterIcon, size: 16),
+                accent: ToolColours.highlighter,
+                child: const FaIcon(Highlighter.highlighterIcon, size: 18),
               ),
               // Aha! copy: the paint bucket; the colour bar opens with it.
               ToolbarIconButton(
@@ -488,7 +491,8 @@ class _ToolbarState extends State<Toolbar> {
                   showColorOptions.value = true;
                 },
                 padding: buttonPadding,
-                child: const Icon(Icons.format_color_fill, size: 20),
+                accent: ToolColours.fill,
+                child: const Icon(Icons.format_color_fill, size: 22),
               ),
               ValueListenableBuilder(
                 valueListenable: showColorOptions,
@@ -528,12 +532,15 @@ class _ToolbarState extends State<Toolbar> {
                   widget.setTool(Select.currentSelect);
                 },
                 padding: buttonPadding,
+                accent: ToolColours.lasso,
                 child: Icon(
                   CupertinoIcons.lasso,
                   shadows: !widget.readOnly
                       ? [
                           BoxShadow(
-                            color: colorScheme.primary,
+                            color: widget.currentTool is Select
+                                ? Colors.white
+                                : ToolColours.lasso,
                             blurRadius: 0.1,
                             spreadRadius: 10,
                             blurStyle: BlurStyle.solid,
@@ -552,6 +559,7 @@ class _ToolbarState extends State<Toolbar> {
                   widget.setTool(LaserPointer.currentLaserPointer);
                 },
                 padding: buttonPadding,
+                accent: ToolColours.laser,
                 child: const Icon(Symbols.stylus_laser_pointer),
               ),
               ToolbarIconButton(
@@ -560,13 +568,15 @@ class _ToolbarState extends State<Toolbar> {
                 enabled: !widget.readOnly,
                 onPressed: toggleEraser,
                 padding: buttonPadding,
-                child: const FaIcon(FontAwesomeIcons.eraser, size: 16),
+                accent: ToolColours.eraser,
+                child: const FaIcon(FontAwesomeIcons.eraser, size: 18),
               ),
               ToolbarIconButton(
                 tooltip: t.editor.toolbar.photo,
                 enabled: !widget.readOnly,
                 onPressed: widget.pickPhoto,
                 padding: buttonPadding,
+                accent: ToolColours.photo,
                 child: const AdaptiveIcon(
                   icon: Icons.photo,
                   cupertinoIcon: CupertinoIcons.photo,
@@ -577,6 +587,7 @@ class _ToolbarState extends State<Toolbar> {
                 enabled: !widget.readOnly,
                 onPressed: widget.insertTable,
                 padding: buttonPadding,
+                accent: ToolColours.table,
                 child: const AdaptiveIcon(
                   icon: Icons.table_chart_outlined,
                   cupertinoIcon: CupertinoIcons.table,
@@ -588,6 +599,7 @@ class _ToolbarState extends State<Toolbar> {
                 enabled: !widget.readOnly,
                 onPressed: widget.toggleTextEditing,
                 padding: buttonPadding,
+                accent: ToolColours.text,
                 child: const AdaptiveIcon(
                   icon: Icons.text_fields,
                   cupertinoIcon: CupertinoIcons.text_cursor,
@@ -900,4 +912,19 @@ class _ColourColumnState extends State<_ColourColumn> {
 
     return Stack(children: [placed]);
   }
+}
+
+/// Aha! copy: each tool's own colour in the toolbar (drawings and notes),
+/// so tools are easier to tell apart at a glance.
+abstract final class ToolColours {
+  static const pen = Color(0xFF2F6FDE);
+  static const pencil = Color(0xFFE07B1F);
+  static const highlighter = Color(0xFFD4A20B);
+  static const fill = Color(0xFF13958F);
+  static const lasso = Color(0xFF7C4DDB);
+  static const laser = Color(0xFFD9363E);
+  static const eraser = Color(0xFFD9538A);
+  static const photo = Color(0xFF2E9150);
+  static const table = Color(0xFF4A63C8);
+  static const text = Color(0xFF52606D);
 }
