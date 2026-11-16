@@ -40,6 +40,37 @@ enum DrawingPaper {
       values.where((p) => p.name == name).firstOrNull;
 }
 
+/// Aha! copy: one layer of a drawing. Strokes carry its [id].
+class DrawingLayer {
+  new({
+    required this.id,
+    required this.name,
+    this.opacity = 1,
+    this.hidden = false,
+  });
+
+  final int id;
+  String name;
+
+  /// How strongly the layer shows, 0.05 to 1.
+  double opacity;
+  bool hidden;
+
+  Map<String, dynamic> toJson() => {
+    'id': id,
+    'name': name,
+    if (opacity != 1) 'opacity': opacity,
+    if (hidden) 'hidden': true,
+  };
+
+  factory fromJson(Map<String, dynamic> json) => DrawingLayer(
+    id: (json['id'] as num?)?.toInt() ?? 0,
+    name: json['name'] as String? ?? '',
+    opacity: ((json['opacity'] as num?)?.toDouble() ?? 1).clamp(0.05, 1),
+    hidden: json['hidden'] == true,
+  );
+}
+
 /// Aha! copy: what makes a note a drawing, and its drawing settings.
 class DrawingSettings {
   new({
@@ -48,7 +79,33 @@ class DrawingSettings {
     this.paper,
     Set<int>? tracingIds,
     this.tracingHidden = false,
-  }) : tracingIds = tracingIds ?? {};
+    List<DrawingLayer>? layers,
+    this.activeLayer = 0,
+    this.fillLinesLayer,
+  }) : tracingIds = tracingIds ?? {},
+       layers = layers == null || layers.isEmpty
+           ? [DrawingLayer(id: 0, name: 'Layer 1')]
+           : layers;
+
+  /// The layers, bottom first. Strokes on a layer that isn't listed (e.g.
+  /// one deleted elsewhere) show on the bottom layer.
+  final List<DrawingLayer> layers;
+
+  /// The layer new strokes go on; the eraser and lasso only touch it.
+  int activeLayer;
+
+  /// The layer whose lines paint fill uses as edges, or null for every
+  /// visible layer.
+  int? fillLinesLayer;
+
+  static const maxLayers = 10;
+
+  /// The layer [id] belongs to as shown: itself, or the bottom layer.
+  int shownLayerOf(int id) =>
+      layers.any((l) => l.id == id) ? id : layers.first.id;
+
+  DrawingLayer? layerWithId(int id) =>
+      layers.where((l) => l.id == id).firstOrNull;
 
   DrawingShape shape;
 
@@ -77,6 +134,9 @@ class DrawingSettings {
     if (paper != null) 'paper': paper!.name,
     if (tracingIds.isNotEmpty) 'tracing': tracingIds.toList(),
     if (tracingHidden) 'tracingHidden': true,
+    'layers': [for (final layer in layers) layer.toJson()],
+    'activeLayer': activeLayer,
+    if (fillLinesLayer != null) 'fillLinesLayer': fillLinesLayer,
   };
 
   factory fromJson(Map<String, dynamic> json) => DrawingSettings(
@@ -88,6 +148,12 @@ class DrawingSettings {
         if (id is int) id,
     },
     tracingHidden: json['tracingHidden'] == true,
+    layers: [
+      for (final layer in json['layers'] as List? ?? const [])
+        if (layer is Map<String, dynamic>) DrawingLayer.fromJson(layer),
+    ],
+    activeLayer: (json['activeLayer'] as num?)?.toInt() ?? 0,
+    fillLinesLayer: (json['fillLinesLayer'] as num?)?.toInt(),
   );
 }
 

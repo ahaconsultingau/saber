@@ -25,6 +25,7 @@ additions below. Everything else is standard Saber.
 | **Password locks** | Notes: long-press a note, then the lock in the bar. Folders: long-press a folder in Browse, then the lock | A locked note (or any note in a locked folder) asks for its password before it opens, and its preview and folder contents are hidden. Everything locks again when the app has been left for 2 minutes. Inside Saber Aha only: the files aren't encrypted (the Mac's Saber still opens them), and passwords are kept on this tablet as salted hashes. A forgotten password can't be recovered in Saber Aha. |
 | **Drawings (Draw mode, step 1)** | The **Draw** button between Quick note and New note, or **New drawing** in the side bar | Asks for a name (or Skip), folder, paper (plain, dots, squares or isometric) and shape (portrait, landscape or square); opens with the brush. A drawing shows a brush badge on its preview. On a drawing only, a **Draw** row above the toolbar has **Grid** (change or hide the guide grid; undo works) and **Flip view** (mirrors the page to check proportions; the drawing itself isn't changed, and the pen still lands where you touch). Any note can become a drawing, or back, from the ⋮ menu. A drawing is an ordinary note plus a small companion file (`<note>.sbn2.dw`), so the Mac's Saber opens and saves it as a note without undoing it; the isometric grid shows as plain paper there. |
 | **Drawings: pen extras (step 2)** | On a drawing: tap the pen in use for its options; the Draw row for the rest | **Opacity** (see-through paint that builds up where strokes cross) and **Steadiness** (smooths shaky lines; it's the pen's own setting, so it carries to notes too) sit beside Size. **Pick colour** then touch the page: the pen takes the colour of the topmost stroke there (or the paper). Paint stays **in the order drawn** (Saber normally groups strokes by pen type); paint fill goes under the ink. **Textured papers** in the New drawing sheet (sketch, watercolour, canvas, kraft, toned grey) are saved as each page's background picture, so the Mac shows them too (no guide grid on textured paper). **Tracing image**: pick a photo; it sits behind the page faded to 30%, can't be moved by the pen, and can be hidden, shown or removed (undo works). On the Mac a tracing image shows at full strength and opacity shows as see-through; drawing order shows as Saber's usual order. |
+| **Drawings: layers (step 3)** | On a drawing: **Layers** in the Draw row opens the panel on the right (where Pages and Bookmarks open) | Up to 10 layers, top first. Tap a layer to draw on it (the Layers button shows which); the eye hides or shows it; drag the handle to reorder; its ⋮ menu renames it, sets its opacity, marks it **Fill uses these lines** (paint fill then takes its edges from that layer, e.g. your outline, and puts the colour on the layer in use), merges it down or deletes it. The eraser and lasso only touch the layer in use. Undo covers merging and deleting a layer. Layers are drawing-wide (every page shares them). Each stroke carries its layer (`aL`); on the Mac everything shows as one layer, and a save there drops the layer tags. |
 | **Pages panel** | Pages button in a note's top bar | Opens on the right, in the same spot as Bookmarks (was a box in the middle). |
 
 ## Builds
@@ -55,6 +56,7 @@ additions below. Everything else is standard Saber.
   call (`handwriting_recognizer.dart`)
 - `lib/data/tools/table_lines.dart`: table geometry
 - `lib/data/tools/fill.dart`: paint fill (grid, flood fill, gap closing)
+- `lib/components/aha/layers_panel.dart`: the Layers panel; layers are drawn in `_canvas_painter.dart`
 - `lib/data/aha/note_drawings.dart`, `lib/components/home/new_drawing_dialog.dart`, `lib/components/toolbar/draw_row.dart`: drawings (companion file, New drawing sheet, Draw row); the isometric grid is in `packages/sbn` and `_canvas_background_painter.dart`
 - `lib/components/toolbar/aha_slider.dart`: the eraser-size and feathering sliders; feathering is the stroke's `aF` key, drawn as a blur in `_canvas_painter.dart`
 - `lib/components/home/preview_card.dart` (`NoteDrag`), `grid_folders.dart` (drop targets), `lib/pages/home/browse.dart` (`moveNotesTo`): drag notes into folders
@@ -64,7 +66,7 @@ additions below. Everything else is standard Saber.
   `insert_table_dialog.dart`: the dialogs
 - `lib/pages/editor/editor.dart`: `convertSelectionToText()`, `insertTable()`
 - Tests: `test/handwriting_ink_lines_test.dart`, `test/table_lines_test.dart`,
-  `test/editor_table_and_convert_test.dart`, `test/eraser_brush_folders_test.dart`, `test/draw_mode_test.dart`, `test/draw_extras_test.dart`
+  `test/editor_table_and_convert_test.dart`, `test/eraser_brush_folders_test.dart`, `test/draw_mode_test.dart`, `test/draw_extras_test.dart`, `test/draw_layers_test.dart`
 
 ## Keeping up with Saber
 

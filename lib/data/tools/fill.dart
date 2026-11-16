@@ -55,13 +55,22 @@ class FillTool extends Tool {
 
   /// Works out the fill for a tap at [tap] on [page], drawn with [color].
   /// Earlier fill inside the area is listed in [FillResult.replaced].
+  ///
+  /// Aha! copy: on a drawing, [edges] are the strokes whose lines bound the
+  /// fill (e.g. the outline layer's), and only earlier fill [replaceable]
+  /// says (the layer in use) is replaced.
   static Future<FillResult> fill({
     required EditorPage page,
     required int pageIndex,
     required Offset tap,
     required Color color,
+    Iterable<Stroke>? edges,
+    bool Function(Stroke)? replaceable,
   }) async {
-    final grid = await FillGrid.rasterise(page.size, page.strokes);
+    final grid = await FillGrid.rasterise(
+      page.size,
+      (edges ?? page.strokes).toList(),
+    );
     final region = grid.regionAt(tap);
     if (region.outcome != FillOutcome.filled) {
       return FillResult(region.outcome, const [], const []);
@@ -80,7 +89,10 @@ class FillTool extends Tool {
     ];
     final replaced = [
       for (final s in page.strokes)
-        if (isFillStroke(s) && region.contains(_middle(s))) s,
+        if (isFillStroke(s) &&
+            (replaceable?.call(s) ?? true) &&
+            region.contains(_middle(s)))
+          s,
     ];
     return FillResult(FillOutcome.filled, strokes, replaced);
   }

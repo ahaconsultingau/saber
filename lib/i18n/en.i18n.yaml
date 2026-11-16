@@ -396,8 +396,25 @@ editor:
     delete: Delete
     duplicate: Duplicate
     convertToText: Convert to text
+  layers:
+    title: Layers
+    add: New layer
+    newName: Layer $n
+    show: Show this layer
+    hide: Hide this layer
+    menu: Layer options
+    rename: Rename
+    opacity: Opacity
+    fillLines: Fill uses these lines
+    fillLinesShort: fill edges
+    mergeDown: Merge down
+    delete: Delete layer
+    deleteTitle: Delete $name?
+    deleteHelp: Everything drawn on this layer is removed. Undo brings it all back.
+    help: Tap a layer to draw on it. The eraser and lasso only touch that layer.
   draw:
     row: Draw
+    layers: Layers
     grid: Grid
     flipView: Flip view
     pickColour: Pick colour

@@ -10,6 +10,7 @@ import 'package:saber/components/canvas/_stroke.dart';
 import 'package:saber/components/canvas/image/editor_image.dart';
 import 'package:saber/components/canvas/inner_canvas.dart';
 import 'package:saber/components/canvas/pencil_shader.dart';
+import 'package:saber/data/aha/note_drawings.dart';
 import 'package:saber/data/editor/editor_exporter.dart';
 import 'package:saber/data/tools/laser_pointer.dart';
 import 'package:sbn/has_size.dart';
@@ -188,6 +189,10 @@ class EditorPage extends ChangeNotifier implements HasSize {
     if (a.toolId != .highlighter) return 0;
     return a.color.toARGB32().compareTo(b.color.toARGB32());
   }
+
+  /// Aha! copy: a drawing's layers (bottom first), or null for a note.
+  /// Shared with the drawing's settings, so changes show at once.
+  DrawingSettings? drawing;
 
   /// Aha! copy: on a drawing, strokes stay in the order they were drawn
   /// (a later stroke is on top) instead of grouped by pen type.

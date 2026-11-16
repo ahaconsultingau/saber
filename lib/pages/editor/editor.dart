@@ -17,6 +17,7 @@ import 'package:material_ui/material_ui.dart';
 import 'package:path/path.dart' as p;
 import 'package:pdfrx/pdfrx.dart';
 import 'package:perfect_freehand/perfect_freehand.dart';
+import 'package:saber/components/aha/layers_panel.dart';
 import 'package:saber/components/aha/lock_widgets.dart';
 import 'package:saber/components/bookmarks/bookmarks_panel.dart';
 import 'package:saber/components/canvas/_asset_cache.dart';
@@ -498,6 +499,21 @@ class EditorState extends State<Editor> {
       case (final HistoricBackgroundImageChange historic):
         coreInfo.pages[historic.pageIndex].backgroundImage =
             historic.change.previous;
+
+      case (final HistoricLayersChange historic):
+        for (final MapEntry(key: stroke, value: change)
+            in historic.strokeLayers.entries) {
+          stroke.layer = change.previous;
+        }
+        if (drawing case final drawing?) {
+          drawing.layers
+            ..clear()
+            ..addAll(historic.layers.previous);
+          if (drawing.layerWithId(drawing.activeLayer) == null) {
+            drawing.activeLayer = drawing.layers.last.id;
+          }
+          _layersChanged();
+        }
     }
 
     if (historic is! HistoricMove) {
@@ -611,7 +627,7 @@ class EditorState extends State<Editor> {
     } else if (currentTool is Eraser) {
       for (final stroke in (currentTool as Eraser).checkForOverlappingStrokes(
         position,
-        page.strokes,
+        _touchableStrokes(page),
       )) {
         page.strokes.remove(stroke);
       }
@@ -657,7 +673,7 @@ class EditorState extends State<Editor> {
     } else if (currentTool is Eraser) {
       for (final stroke in (currentTool as Eraser).checkForOverlappingStrokes(
         position,
-        page.strokes,
+        _touchableStrokes(page),
       )) {
         page.strokes.remove(stroke);
       }
@@ -814,6 +830,8 @@ class EditorState extends State<Editor> {
         }
 
         createPage(newStroke.pageIndex);
+        // Aha! copy: a drawing's stroke goes on the layer in use.
+        if (drawing case final drawing?) newStroke.layer = drawing.activeLayer;
         page.insertStroke(newStroke);
         history.recordChange(HistoricAdd(strokes: [newStroke], images: []));
       } else if (currentTool is Eraser) {
@@ -846,7 +864,7 @@ class EditorState extends State<Editor> {
           select.selectResult.pageIndexStart = select.selectResult.pageIndex;
         } else {
           shouldSave = false;
-          select.onDragEnd(page.strokes, page.images);
+          select.onDragEnd(_touchableStrokes(page), page.images);
 
           if (select.selectResult.isEmpty) {
             Select.currentSelect.unselect();
@@ -981,15 +999,46 @@ class EditorState extends State<Editor> {
   /// Aha! copy: the paint bucket. Fills the closed shape around [position]
   /// on page [pageIndex] with the fill colour, under the ink; filling the
   /// same shape again replaces the colour.
+  @visibleForTesting
+  Future<void> fillAtForTesting(Offset position, int pageIndex) =>
+      _fillAt(position, pageIndex);
+
   Future<void> _fillAt(Offset position, int pageIndex) async {
     if (coreInfo.readOnly || pageIndex >= coreInfo.pages.length) return;
     final page = coreInfo.pages[pageIndex];
+    // Aha! copy: on a drawing, the edges come from the "fill uses these
+    // lines" layer (or every visible layer), and the colour goes on the
+    // layer in use.
+    final drawing = this.drawing;
+    Iterable<Stroke>? edges;
+    bool Function(Stroke)? replaceable;
+    if (drawing != null) {
+      bool onLayer(Stroke s, int id) => drawing.shownLayerOf(s.layer) == id;
+      final lines = drawing.fillLinesLayer;
+      edges = lines != null
+          ? page.strokes.where((s) => onLayer(s, lines))
+          : page.strokes.where(
+              (s) =>
+                  !(drawing
+                          .layerWithId(drawing.shownLayerOf(s.layer))
+                          ?.hidden ??
+                      false),
+            );
+      replaceable = (s) => onLayer(s, drawing.activeLayer);
+    }
     final result = await FillTool.fill(
       page: page,
       pageIndex: pageIndex,
       tap: position,
       color: FillTool.currentFill.color,
+      edges: edges,
+      replaceable: replaceable,
     );
+    if (drawing != null) {
+      for (final stroke in result.strokes) {
+        stroke.layer = drawing.activeLayer;
+      }
+    }
     if (!mounted) return;
     switch (result.outcome) {
       case FillOutcome.filled:
@@ -1001,9 +1050,13 @@ class EditorState extends State<Editor> {
             );
           }
           if (page.keepDrawingOrder) {
-            // Aha! copy: on a drawing, fill goes under the ink drawn so far.
+            // Aha! copy: on a drawing, fill goes under the ink drawn so far
+            // on its layer.
             final under = page.strokes.indexWhere(
-              (s) => !FillTool.isFillStroke(s),
+              (s) =>
+                  !FillTool.isFillStroke(s) &&
+                  (drawing == null ||
+                      drawing.shownLayerOf(s.layer) == drawing.activeLayer),
             );
             page.strokes.insertAll(
               under < 0 ? page.strokes.length : under,
@@ -1786,6 +1839,14 @@ class EditorState extends State<Editor> {
                   setGrid: setDrawingGrid,
                   flipped: flipView,
                   toggleFlip: () => setState(() => flipView = !flipView),
+                  layersOpen: showLayers,
+                  toggleLayers: () => setState(() {
+                    showLayers = !showLayers;
+                    if (showLayers) showPages = showBookmarks = false;
+                  }),
+                  activeLayerName: drawing
+                      ?.layerWithId(drawing!.activeLayer)
+                      ?.name,
                   picking: pickingColour,
                   togglePicking: () =>
                       setState(() => pickingColour = !pickingColour),
@@ -1802,7 +1863,7 @@ class EditorState extends State<Editor> {
                   removeTracing: removeTracingImage,
                 ),
           // The colour bar keeps clear of the Pages or Bookmarks panel.
-          sidePanelWidth: showPages || showBookmarks
+          sidePanelWidth: showPages || showBookmarks || showLayers
               ? FloatingSidePanel.widthFor(MediaQuery.sizeOf(context).width)
               : 0,
           setTool: (tool) {
@@ -1933,7 +1994,16 @@ class EditorState extends State<Editor> {
     // Aha! copy: the Bookmarks panel floats over the page, not the toolbar.
     // Aha! copy: Pages and Bookmarks float over the page, not the toolbar,
     // in the same spot on the right.
-    final Widget? sidePanel = showPages
+    final Widget? sidePanel = showLayers && drawing != null
+        ? LayersPanel(
+            drawing: drawing!,
+            onChanged: _layersChanged,
+            onAddLayer: addLayer,
+            onMergeDown: mergeLayerDown,
+            onDelete: deleteLayer,
+            onClose: () => setState(() => showLayers = false),
+          )
+        : showPages
         ? FloatingSidePanel(
             key: const ValueKey('pagesPanel'),
             title: t.editor.pages,
@@ -2093,7 +2163,7 @@ class EditorState extends State<Editor> {
                     // Aha! copy: opens on the right, where Bookmarks opens.
                     onPressed: () => setState(() {
                       showPages = !showPages;
-                      if (showPages) showBookmarks = false;
+                      if (showPages) showBookmarks = showLayers = false;
                     }),
                   ),
                   // Aha! copy: Bookmarks, beside Pages (a different view).
@@ -2106,7 +2176,7 @@ class EditorState extends State<Editor> {
                     tooltip: t.editor.bookmarks.title,
                     onPressed: () => setState(() {
                       showBookmarks = !showBookmarks;
-                      if (showBookmarks) showPages = false;
+                      if (showBookmarks) showPages = showLayers = false;
                     }),
                   ),
                   IconButton(
@@ -2313,13 +2383,125 @@ class EditorState extends State<Editor> {
   Size get _newPageSize => drawing?.shape.pageSize ?? EditorPage.defaultSize;
 
   /// Aha! copy: drawings keep strokes in drawing order and allow the
-  /// drawing-only pen options.
+  /// drawing-only pen options; their pages draw by layer.
   void _applyDrawingMode() {
     final isDrawing = drawing != null;
     Pen.drawingMode = isDrawing;
     for (final page in coreInfo.pages) {
       page.keepDrawingOrder = isDrawing;
+      page.drawing = drawing;
+      page.redrawStrokes();
     }
+  }
+
+  /// Aha! copy: the strokes the eraser and lasso may touch: on a drawing,
+  /// only those on the layer in use (and only while it's showing).
+  List<Stroke> _touchableStrokes(EditorPage page) {
+    final drawing = this.drawing;
+    if (drawing == null) return page.strokes;
+    final active = drawing.layerWithId(drawing.activeLayer);
+    if (active == null || active.hidden) return const [];
+    return [
+      for (final stroke in page.strokes)
+        if (drawing.shownLayerOf(stroke.layer) == active.id) stroke,
+    ];
+  }
+
+  /// Aha! copy: whether the layers panel is open (drawings only).
+  var showLayers = false;
+
+  /// Aha! copy: after a change in the layers panel: redraw and save.
+  Future<void> _layersChanged() async {
+    if (drawing == null) return;
+    setState(() {});
+    for (final page in coreInfo.pages) {
+      page.redrawStrokes();
+    }
+    if (coreInfo.readOnly) return;
+    if (FileManager.doesFileExist(coreInfo.filePath + Editor.extension)) {
+      await NoteDrawings.save(coreInfo.filePath, drawing!);
+    } else {
+      _drawingSaved = false;
+    }
+  }
+
+  /// Aha! copy: a new layer on top, which becomes the layer in use.
+  void addLayer() {
+    final drawing = this.drawing;
+    if (drawing == null || drawing.layers.length >= DrawingSettings.maxLayers) {
+      return;
+    }
+    final id = drawing.layers.fold(0, (m, l) => l.id > m ? l.id : m) + 1;
+    drawing.layers.add(
+      DrawingLayer(
+        id: id,
+        name: t.editor.layers.newName(n: drawing.layers.length + 1),
+      ),
+    );
+    drawing.activeLayer = id;
+    _layersChanged();
+  }
+
+  /// Aha! copy: moves [layer]'s strokes onto the layer below and removes it.
+  void mergeLayerDown(DrawingLayer layer) {
+    final drawing = this.drawing;
+    if (drawing == null) return;
+    final index = drawing.layers.indexOf(layer);
+    if (index < 1) return;
+    final below = drawing.layers[index - 1];
+    final before = List.of(drawing.layers);
+    final moved = <Stroke, Change<int>>{};
+    for (final page in coreInfo.pages) {
+      for (final stroke in page.strokes) {
+        if (drawing.shownLayerOf(stroke.layer) == layer.id) {
+          moved[stroke] = Change(previous: stroke.layer, current: below.id);
+          stroke.layer = below.id;
+        }
+      }
+    }
+    drawing.layers.removeAt(index);
+    if (drawing.activeLayer == layer.id) drawing.activeLayer = below.id;
+    if (drawing.fillLinesLayer == layer.id) drawing.fillLinesLayer = below.id;
+    history.recordChange(
+      HistoricLayersChange(
+        layers: Change(previous: before, current: List.of(drawing.layers)),
+        strokeLayers: moved,
+      ),
+    );
+    autosaveAfterDelay();
+    _layersChanged();
+  }
+
+  /// Aha! copy: removes [layer] and everything drawn on it (undo brings the
+  /// strokes back, onto the bottom layer).
+  void deleteLayer(DrawingLayer layer) {
+    final drawing = this.drawing;
+    if (drawing == null || drawing.layers.length < 2) return;
+    final removed = <Stroke>[];
+    for (final page in coreInfo.pages) {
+      final onLayer = [
+        for (final stroke in page.strokes)
+          if (drawing.shownLayerOf(stroke.layer) == layer.id) stroke,
+      ];
+      page.strokes.removeWhere(onLayer.toSet().contains);
+      removed.addAll(onLayer);
+    }
+    final before = List.of(drawing.layers);
+    drawing.layers.remove(layer);
+    if (drawing.activeLayer == layer.id) {
+      drawing.activeLayer = drawing.layers.last.id;
+    }
+    if (drawing.fillLinesLayer == layer.id) drawing.fillLinesLayer = null;
+    // Undo puts the layer back first, then its strokes.
+    history.recordChange(HistoricDelete(strokes: removed, images: const []));
+    history.recordChange(
+      HistoricLayersChange(
+        layers: Change(previous: before, current: List.of(drawing.layers)),
+        strokeLayers: const {},
+      ),
+    );
+    autosaveAfterDelay();
+    _layersChanged();
   }
 
   /// Aha! copy: the drawing's textured paper, put behind each new page.
@@ -2327,7 +2509,8 @@ class EditorState extends State<Editor> {
 
   EditorPage _newPage(int pageIndex) {
     final page = EditorPage(size: _newPageSize)
-      ..keepDrawingOrder = drawing != null;
+      ..keepDrawingOrder = drawing != null
+      ..drawing = drawing;
     page.backgroundImage = _paperImage(pageIndex, page.size);
     return page;
   }
@@ -2462,7 +2645,13 @@ class EditorState extends State<Editor> {
     final page = coreInfo.pages[pageIndex];
     final position = page.renderBox!.globalToLocal(globalPosition);
     Color? picked;
+    final drawing = this.drawing;
     for (final stroke in page.strokes.reversed) {
+      if (drawing != null &&
+          (drawing.layerWithId(drawing.shownLayerOf(stroke.layer))?.hidden ??
+              false)) {
+        continue; // hidden layers can't be picked from
+      }
       if (stroke.highQualityPath.contains(position)) {
         picked = stroke.color.withAlpha(255);
         break;

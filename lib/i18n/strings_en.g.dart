@@ -320,6 +320,7 @@ class Translations$editor$en {
 	late final Translations$editor$colors$en colors = Translations$editor$colors$en.internal(_root);
 	late final Translations$editor$imageOptions$en imageOptions = Translations$editor$imageOptions$en.internal(_root);
 	late final Translations$editor$selectionBar$en selectionBar = Translations$editor$selectionBar$en.internal(_root);
+	late final Translations$editor$layers$en layers = Translations$editor$layers$en.internal(_root);
 	late final Translations$editor$draw$en draw = Translations$editor$draw$en.internal(_root);
 	late final Translations$editor$penGuard$en penGuard = Translations$editor$penGuard$en.internal(_root);
 	late final Translations$editor$bookmarks$en bookmarks = Translations$editor$bookmarks$en.internal(_root);
@@ -1524,6 +1525,60 @@ class Translations$editor$selectionBar$en {
 	String get convertToText => 'Convert to text';
 }
 
+// Path: editor.layers
+class Translations$editor$layers$en {
+	Translations$editor$layers$en.internal(this._root);
+
+	final Translations _root; // ignore: unused_field
+
+	// Translations
+
+	/// en: 'Layers'
+	String get title => 'Layers';
+
+	/// en: 'New layer'
+	String get add => 'New layer';
+
+	/// en: 'Layer $n'
+	String newName({required Object n}) => 'Layer ${n}';
+
+	/// en: 'Show this layer'
+	String get show => 'Show this layer';
+
+	/// en: 'Hide this layer'
+	String get hide => 'Hide this layer';
+
+	/// en: 'Layer options'
+	String get menu => 'Layer options';
+
+	/// en: 'Rename'
+	String get rename => 'Rename';
+
+	/// en: 'Opacity'
+	String get opacity => 'Opacity';
+
+	/// en: 'Fill uses these lines'
+	String get fillLines => 'Fill uses these lines';
+
+	/// en: 'fill edges'
+	String get fillLinesShort => 'fill edges';
+
+	/// en: 'Merge down'
+	String get mergeDown => 'Merge down';
+
+	/// en: 'Delete layer'
+	String get delete => 'Delete layer';
+
+	/// en: 'Delete $name?'
+	String deleteTitle({required Object name}) => 'Delete ${name}?';
+
+	/// en: 'Everything drawn on this layer is removed. Undo brings it all back.'
+	String get deleteHelp => 'Everything drawn on this layer is removed. Undo brings it all back.';
+
+	/// en: 'Tap a layer to draw on it. The eraser and lasso only touch that layer.'
+	String get help => 'Tap a layer to draw on it. The eraser and lasso only touch that layer.';
+}
+
 // Path: editor.draw
 class Translations$editor$draw$en {
 	Translations$editor$draw$en.internal(this._root);
@@ -1534,6 +1589,9 @@ class Translations$editor$draw$en {
 
 	/// en: 'Draw'
 	String get row => 'Draw';
+
+	/// en: 'Layers'
+	String get layers => 'Layers';
 
 	/// en: 'Grid'
 	String get grid => 'Grid';

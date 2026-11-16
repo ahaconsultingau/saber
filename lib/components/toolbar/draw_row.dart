@@ -12,6 +12,9 @@ class DrawRow extends StatelessWidget {
     required this.setGrid,
     required this.flipped,
     required this.toggleFlip,
+    required this.layersOpen,
+    required this.toggleLayers,
+    this.activeLayerName,
     required this.picking,
     required this.togglePicking,
     required this.hasTracing,
@@ -29,6 +32,11 @@ class DrawRow extends StatelessWidget {
 
   /// Removes the tracing image from the page in view.
   final VoidCallback removeTracing;
+
+  /// Whether the Layers panel is open, and the layer in use.
+  final bool layersOpen;
+  final VoidCallback toggleLayers;
+  final String? activeLayerName;
 
   /// Whether the next touch on the page picks a colour.
   final bool picking;
@@ -72,6 +80,17 @@ class DrawRow extends StatelessWidget {
               letterSpacing: 0.8,
               color: colorScheme.primary,
             ),
+          ),
+          FilterChip(
+            key: const ValueKey('drawLayers'),
+            avatar: layersOpen ? null : const Icon(Icons.layers, size: 18),
+            label: Text(
+              activeLayerName == null
+                  ? t.editor.draw.layers
+                  : '${t.editor.draw.layers} · $activeLayerName',
+            ),
+            selected: layersOpen,
+            onSelected: (_) => toggleLayers(),
           ),
           FilterChip(
             key: const ValueKey('drawPick'),

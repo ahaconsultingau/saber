@@ -8,6 +8,7 @@ import 'package:perfect_freehand/perfect_freehand.dart';
 import 'package:saber/components/canvas/_circle_stroke.dart';
 import 'package:saber/components/canvas/_rectangle_stroke.dart';
 import 'package:saber/components/canvas/_stroke.dart';
+import 'package:saber/data/aha/note_drawings.dart';
 import 'package:saber/data/editor/page.dart';
 import 'package:saber/data/extensions/color_extensions.dart';
 import 'package:saber/data/tools/highlighter.dart';
@@ -49,8 +50,31 @@ class CanvasPainter extends CustomPainter {
   void paint(Canvas canvas, Size size) {
     final canvasRect = Offset.zero & size;
 
-    _drawHighlighterStrokes(canvas, canvasRect);
-    _drawNonHighlighterStrokes(canvas);
+    final drawing = page.drawing;
+    if (drawing == null || drawing.layers.length < 2 && _plain(drawing)) {
+      _drawHighlighterStrokes(canvas, canvasRect, strokes);
+      _drawNonHighlighterStrokes(canvas, strokes);
+    } else {
+      // Aha! copy: a drawing's layers, bottom first.
+      for (final layer in drawing.layers) {
+        if (layer.hidden) continue;
+        final onLayer = [
+          for (final stroke in strokes)
+            if (drawing.shownLayerOf(stroke.layer) == layer.id) stroke,
+        ];
+        if (onLayer.isEmpty) continue;
+        final faded = layer.opacity < 1;
+        if (faded) {
+          canvas.saveLayer(
+            canvasRect,
+            Paint()..color = Colors.black.withValues(alpha: layer.opacity),
+          );
+        }
+        _drawHighlighterStrokes(canvas, canvasRect, onLayer);
+        _drawNonHighlighterStrokes(canvas, onLayer);
+        if (faded) canvas.restore();
+      }
+    }
     for (final stroke in laserStrokes) _drawLaserStroke(canvas, stroke);
     _drawCurrentStroke(canvas);
     _drawDetectedShape(canvas);
@@ -77,7 +101,16 @@ class CanvasPainter extends CustomPainter {
         currentScale != oldDelegate.currentScale;
   }
 
-  void _drawHighlighterStrokes(Canvas canvas, Rect canvasRect) {
+  /// Aha! copy: one layer, shown fully: drawn the usual way.
+  static bool _plain(DrawingSettings drawing) =>
+      drawing.layers.isEmpty ||
+      (!drawing.layers.first.hidden && drawing.layers.first.opacity == 1);
+
+  void _drawHighlighterStrokes(
+    Canvas canvas,
+    Rect canvasRect,
+    List<Stroke> strokes,
+  ) {
     final layerPaint = Paint()
       ..blendMode = invert ? BlendMode.lighten : BlendMode.darken
       ..color = Colors.white.withAlpha(Highlighter.alpha);
@@ -104,7 +137,7 @@ class CanvasPainter extends CustomPainter {
     if (needToRestoreCanvasLayer) canvas.restore();
   }
 
-  void _drawNonHighlighterStrokes(Canvas canvas) {
+  void _drawNonHighlighterStrokes(Canvas canvas, List<Stroke> strokes) {
     late final paint = Paint();
 
     for (final stroke in strokes) {
