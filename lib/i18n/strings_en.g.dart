@@ -461,6 +461,8 @@ class Translations$home$newDrawing$en {
 
 	/// en: 'Drawing'
 	String get drawingBadge => 'Drawing';
+
+	late final Translations$home$newDrawing$papers$en papers = Translations$home$newDrawing$papers$en.internal(_root);
 }
 
 // Path: home.tabs
@@ -1380,6 +1382,12 @@ class Translations$editor$penOptions$en {
 	/// en: 'Feathering'
 	String get feathering => 'Feathering';
 
+	/// en: 'Opacity'
+	String get opacity => 'Opacity';
+
+	/// en: 'Steadiness'
+	String get steadiness => 'Steadiness';
+
 	/// en: 'Eraser size'
 	String get eraserSize => 'Eraser size';
 }
@@ -1532,6 +1540,27 @@ class Translations$editor$draw$en {
 
 	/// en: 'Flip view'
 	String get flipView => 'Flip view';
+
+	/// en: 'Pick colour'
+	String get pickColour => 'Pick colour';
+
+	/// en: 'Touch the page to take a colour from it'
+	String get pickColourHint => 'Touch the page to take a colour from it';
+
+	/// en: 'Tracing image'
+	String get tracingImage => 'Tracing image';
+
+	/// en: 'Hide tracing image'
+	String get hideTracing => 'Hide tracing image';
+
+	/// en: 'Show tracing image'
+	String get showTracing => 'Show tracing image';
+
+	/// en: 'Tracing image on this page'
+	String get addTracing => 'Tracing image on this page';
+
+	/// en: 'Remove from this page'
+	String get removeTracing => 'Remove from this page';
 
 	/// en: 'Flipped view'
 	String get flipped => 'Flipped view';
@@ -1841,6 +1870,30 @@ class Translations$editor$hud$en {
 
 	/// en: 'Lock panning to horizontal or vertical'
 	String get lockAxisAlignedPan => 'Lock panning to horizontal or vertical';
+}
+
+// Path: home.newDrawing.papers
+class Translations$home$newDrawing$papers$en {
+	Translations$home$newDrawing$papers$en.internal(this._root);
+
+	final Translations _root; // ignore: unused_field
+
+	// Translations
+
+	/// en: 'Sketch'
+	String get sketch => 'Sketch';
+
+	/// en: 'Watercolour'
+	String get watercolour => 'Watercolour';
+
+	/// en: 'Canvas'
+	String get canvas => 'Canvas';
+
+	/// en: 'Kraft'
+	String get kraft => 'Kraft';
+
+	/// en: 'Toned grey'
+	String get tonedGrey => 'Toned grey';
 }
 
 // Path: sentry.consent.description

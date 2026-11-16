@@ -189,9 +189,14 @@ class EditorPage extends ChangeNotifier implements HasSize {
     return a.color.toARGB32().compareTo(b.color.toARGB32());
   }
 
+  /// Aha! copy: on a drawing, strokes stay in the order they were drawn
+  /// (a later stroke is on top) instead of grouped by pen type.
+  var keepDrawingOrder = false;
+
   /// Inserts a stroke, while keeping the strokes sorted by
-  /// [compareStrokes].
+  /// [compareStrokes] (or, on a drawing, at the top).
   void insertStroke(Stroke newStroke) {
+    if (keepDrawingOrder) return strokes.add(newStroke);
     int index = 0;
     for (final stroke in strokes) {
       if (compareStrokes(stroke, newStroke) > 0) {
@@ -203,7 +208,9 @@ class EditorPage extends ChangeNotifier implements HasSize {
   }
 
   /// Sorts the strokes by [compareStrokes].
-  void sortStrokes() => strokes.sort(compareStrokes);
+  void sortStrokes() {
+    if (!keepDrawingOrder) strokes.sort(compareStrokes);
+  }
 
   static List<Stroke> parseStrokesJson(
     List<dynamic>? strokes, {

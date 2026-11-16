@@ -31,10 +31,14 @@ class _PenModalState<T extends Pen> extends State<PenModal<T>> {
     final axis = stows.editorToolbarAlignment.value.axis.opposite;
     final pen = widget.getTool();
 
-    return Flex(
+    // Aha! copy: wraps onto a second line when the drawing options don't
+    // all fit beside the pens.
+    return Wrap(
       direction: axis,
-      mainAxisAlignment: .center,
+      alignment: WrapAlignment.center,
+      crossAxisAlignment: WrapCrossAlignment.center,
       spacing: 8,
+      runSpacing: 4,
       children: [
         SizePicker(axis: axis, pen: pen),
 
@@ -53,6 +57,31 @@ class _PenModalState<T extends Pen> extends State<PenModal<T>> {
               stows.lastBrushFeather.value = v;
             }),
           ),
+
+        // Aha! copy: on drawings, see-through paint and steadier lines.
+        if (Pen.drawingMode && pen is! Highlighter) ...[
+          if (pen is! Pencil)
+            AhaToolSlider(
+              key: const ValueKey('penOpacity'),
+              axis: axis,
+              label: t.editor.penOptions.opacity,
+              valueLabel: '${(Pen.drawingOpacity * 100).round()}%',
+              value: Pen.drawingOpacity,
+              min: 0.05,
+              max: 1,
+              onChanged: (v) => setState(() => Pen.drawingOpacity = v),
+            ),
+          AhaToolSlider(
+            key: const ValueKey('penSteadiness'),
+            axis: axis,
+            label: t.editor.penOptions.steadiness,
+            valueLabel: '${(pen.options.streamline * 100).round()}%',
+            value: pen.options.streamline.clamp(0, 0.95),
+            min: 0,
+            max: 0.95,
+            onChanged: (v) => setState(() => pen.options.streamline = v),
+          ),
+        ],
 
         if (pen is! Highlighter && pen is! Pencil) ...[
           _PenSelector(

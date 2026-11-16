@@ -87,6 +87,15 @@ class Pen extends Tool {
   /// Aha! copy: soft edges, 0 to 1 (the brush only).
   double feather = 0;
 
+  /// Aha! copy: true while a drawing is open, so the drawing-only options
+  /// (opacity) apply. Notes always draw fully opaque.
+  static var drawingMode = false;
+
+  /// Aha! copy: how see-through the paint is on drawings, 0.05 to 1.
+  static double get drawingOpacity => stows.drawingOpacity.value;
+  static set drawingOpacity(double value) =>
+      stows.drawingOpacity.value = value.clamp(0.05, 1);
+
   static var _currentPen = stows.lastPenIsBrush.value
       ? Pen.brush()
       : Pen.fountainPen();
@@ -107,7 +116,9 @@ class Pen extends Tool {
     double? pressure,
   ) {
     currentStroke = Stroke(
-      color: color,
+      color: drawingMode && drawingOpacity < 1 && this is! Highlighter
+          ? color.withValues(alpha: color.a * drawingOpacity)
+          : color,
       pressureEnabled: pressureEnabled,
       options: options.copyWith(isComplete: false),
       pageIndex: pageIndex,

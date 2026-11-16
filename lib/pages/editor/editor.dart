@@ -25,6 +25,7 @@ import 'package:saber/components/canvas/canvas.dart';
 import 'package:saber/components/canvas/canvas_gesture_detector.dart';
 import 'package:saber/components/canvas/canvas_image.dart';
 import 'package:saber/components/canvas/image/editor_image.dart';
+import 'package:saber/components/canvas/inner_canvas.dart';
 import 'package:saber/components/canvas/save_indicator.dart';
 import 'package:saber/components/editor/floating_side_panel.dart';
 import 'package:saber/components/editor/read_only_banner.dart';
@@ -258,6 +259,11 @@ class EditorState extends State<Editor> {
     } else if (coreInfo.filePath.isNotEmpty) {
       drawing = await NoteDrawings.load(coreInfo.filePath);
     }
+    _applyTracingOpacity();
+    if (drawing?.paper case final paper?) {
+      _paperBytes = (await rootBundle.load(paper.asset)).buffer.asUint8List();
+    }
+    _applyDrawingMode();
 
     if (coreInfo.isEmpty) {
       createPage(-1);
@@ -333,7 +339,7 @@ class EditorState extends State<Editor> {
   /// plus an extra blank page
   void createPage(int pageIndex) {
     while (pageIndex >= coreInfo.pages.length - 1) {
-      final page = EditorPage(size: _newPageSize);
+      final page = _newPage(coreInfo.pages.length);
       coreInfo.pages.add(page);
       listenToQuillChanges(page.quill, coreInfo.pages.length - 1);
     }
@@ -488,6 +494,10 @@ class EditorState extends State<Editor> {
 
       case (final HistoricBackgroundPatternChange historic):
         coreInfo.backgroundPattern = historic.change.previous;
+
+      case (final HistoricBackgroundImageChange historic):
+        coreInfo.pages[historic.pageIndex].backgroundImage =
+            historic.change.previous;
     }
 
     if (historic is! HistoricMove) {
@@ -531,6 +541,11 @@ class EditorState extends State<Editor> {
   double? currentPressure;
   bool isDrawGesture(ScaleStartDetails details) {
     if (coreInfo.readOnly) return false;
+    // Aha! copy: Pick colour takes the colour under the pen instead.
+    if (pickingColour) {
+      pickColourAt(details.focalPoint);
+      return false;
+    }
 
     CanvasImage.activeListener
         .notifyListenersPlease(); // un-select active image
@@ -985,8 +1000,19 @@ class EditorState extends State<Editor> {
               HistoricDelete(strokes: result.replaced, images: const []),
             );
           }
-          for (final stroke in result.strokes) {
-            page.insertStroke(stroke);
+          if (page.keepDrawingOrder) {
+            // Aha! copy: on a drawing, fill goes under the ink drawn so far.
+            final under = page.strokes.indexWhere(
+              (s) => !FillTool.isFillStroke(s),
+            );
+            page.strokes.insertAll(
+              under < 0 ? page.strokes.length : under,
+              result.strokes,
+            );
+          } else {
+            for (final stroke in result.strokes) {
+              page.insertStroke(stroke);
+            }
           }
           history.recordChange(
             HistoricAdd(strokes: result.strokes, images: const []),
@@ -1754,10 +1780,26 @@ class EditorState extends State<Editor> {
               ? null
               : DrawRow(
                   axis: isToolbarVertical ? Axis.vertical : Axis.horizontal,
-                  grid: coreInfo.backgroundPattern,
+                  grid: drawing?.paper == null
+                      ? coreInfo.backgroundPattern
+                      : null,
                   setGrid: setDrawingGrid,
                   flipped: flipView,
                   toggleFlip: () => setState(() => flipView = !flipView),
+                  picking: pickingColour,
+                  togglePicking: () =>
+                      setState(() => pickingColour = !pickingColour),
+                  hasTracing: coreInfo.pages.any(
+                    (page) =>
+                        drawing?.tracingIds.contains(
+                          page.backgroundImage?.id,
+                        ) ??
+                        false,
+                  ),
+                  tracingHidden: drawing?.tracingHidden ?? false,
+                  addTracing: addTracingImage,
+                  setTracingHidden: setTracingHidden,
+                  removeTracing: removeTracingImage,
                 ),
           // The colour bar keeps clear of the Pages or Bookmarks panel.
           sidePanelWidth: showPages || showBookmarks
@@ -1852,44 +1894,7 @@ class EditorState extends State<Editor> {
               ? convertSelectionToText
               : null,
           insertTable: insertTable,
-          setColor: (color) {
-            setState(() {
-              updateColorBar(color);
-
-              if (currentTool is Highlighter) {
-                (currentTool as Highlighter).color = color.withAlpha(
-                  Highlighter.alpha,
-                );
-              } else if (currentTool is FillTool) {
-                (currentTool as FillTool).color = color.withAlpha(255);
-              } else if (currentTool is Pen) {
-                (currentTool as Pen).color = color;
-              } else if (currentTool is Select) {
-                // Changes color of selected strokes
-                final select = currentTool as Select;
-                if (select.doneSelecting) {
-                  final strokes = select.selectResult.strokes;
-
-                  final colorChanges = <Stroke, Change<Color>>{};
-                  for (final stroke in strokes) {
-                    colorChanges[stroke] = Change(
-                      previous: stroke.color,
-                      current: color,
-                    );
-                    stroke.color = color;
-                  }
-
-                  history.recordChange(
-                    HistoricColorChange(
-                      pageIndex: strokes.first.pageIndex,
-                      colorChanges: colorChanges,
-                    ),
-                  );
-                  autosaveAfterDelay();
-                }
-              }
-            });
-          },
+          setColor: setColor,
           quillFocus: quillFocus,
           textEditing: currentTool == Tool.textEditing,
           toggleTextEditing: () => setState(() {
@@ -2256,6 +2261,44 @@ class EditorState extends State<Editor> {
     if (tool != null) currentTool = tool;
   }
 
+  /// Sets the colour of the current tool (or the selected strokes).
+  void setColor(Color color) {
+    setState(() {
+      updateColorBar(color);
+
+      if (currentTool is Highlighter) {
+        (currentTool as Highlighter).color = color.withAlpha(Highlighter.alpha);
+      } else if (currentTool is FillTool) {
+        (currentTool as FillTool).color = color.withAlpha(255);
+      } else if (currentTool is Pen) {
+        (currentTool as Pen).color = color;
+      } else if (currentTool is Select) {
+        // Changes color of selected strokes
+        final select = currentTool as Select;
+        if (select.doneSelecting) {
+          final strokes = select.selectResult.strokes;
+
+          final colorChanges = <Stroke, Change<Color>>{};
+          for (final stroke in strokes) {
+            colorChanges[stroke] = Change(
+              previous: stroke.color,
+              current: color,
+            );
+            stroke.color = color;
+          }
+
+          history.recordChange(
+            HistoricColorChange(
+              pageIndex: strokes.first.pageIndex,
+              colorChanges: colorChanges,
+            ),
+          );
+          autosaveAfterDelay();
+        }
+      }
+    });
+  }
+
   var _leaving = false;
 
   /// Aha! copy: the note's drawing settings, or null for an ordinary note.
@@ -2268,6 +2311,167 @@ class EditorState extends State<Editor> {
 
   /// New pages match a drawing's shape; notes get Saber's usual page.
   Size get _newPageSize => drawing?.shape.pageSize ?? EditorPage.defaultSize;
+
+  /// Aha! copy: drawings keep strokes in drawing order and allow the
+  /// drawing-only pen options.
+  void _applyDrawingMode() {
+    final isDrawing = drawing != null;
+    Pen.drawingMode = isDrawing;
+    for (final page in coreInfo.pages) {
+      page.keepDrawingOrder = isDrawing;
+    }
+  }
+
+  /// Aha! copy: the drawing's textured paper, put behind each new page.
+  Uint8List? _paperBytes;
+
+  EditorPage _newPage(int pageIndex) {
+    final page = EditorPage(size: _newPageSize)
+      ..keepDrawingOrder = drawing != null;
+    page.backgroundImage = _paperImage(pageIndex, page.size);
+    return page;
+  }
+
+  /// The drawing's textured paper as a page picture, or null.
+  EditorImage? _paperImage(int pageIndex, Size pageSize) {
+    final bytes = _paperBytes;
+    if (bytes == null || drawing?.paper == null) return null;
+    return PngEditorImage(
+      id: coreInfo.nextImageId++,
+      extension: '.jpg',
+      imageProvider: MemoryImage(bytes),
+      pageIndex: pageIndex,
+      pageSize: pageSize,
+      invertible: false,
+      backgroundFit: .cover,
+      onMoveImage: onMoveImage,
+      onDeleteImage: onDeleteImage,
+      onMiscChange: autosaveAfterDelay,
+      assetCache: coreInfo.assetCache,
+    );
+  }
+
+  /// Aha! copy: shows a drawing's tracing images faded (or hidden).
+  void _applyTracingOpacity() {
+    final drawing = this.drawing;
+    for (final page in coreInfo.pages) {
+      final image = page.backgroundImage;
+      if (image == null) continue;
+      image.displayOpacity =
+          drawing != null && drawing.tracingIds.contains(image.id)
+          ? (drawing.tracingHidden ? 0 : DrawingSettings.tracingOpacity)
+          : 1;
+    }
+  }
+
+  bool get _pageHasTracing {
+    final id = coreInfo.pages[currentPageIndex].backgroundImage?.id;
+    return id != null && (drawing?.tracingIds.contains(id) ?? false);
+  }
+
+  /// Aha! copy: puts a photo behind the current page of a drawing, faded,
+  /// to trace over. It can't be moved by the pen, and can be hidden.
+  Future<void> addTracingImage() async {
+    if (coreInfo.readOnly || drawing == null) return;
+    final photos = await _pickPhotosWithFilePicker();
+    final photo = photos.where((p) {
+      final ext = p.extension.toLowerCase();
+      return ext != '.pdf' && ext != '.svg';
+    }).firstOrNull;
+    if (photo == null || !mounted) return;
+    addTracingImageBytes(photo.bytes, photo.extension);
+  }
+
+  /// Puts the picture [bytes] behind the current page as a tracing image.
+  void addTracingImageBytes(Uint8List bytes, String extension) {
+    if (coreInfo.readOnly || drawing == null) return;
+    final pageIndex = currentPageIndex;
+    final page = coreInfo.pages[pageIndex];
+    final image = PngEditorImage(
+      id: coreInfo.nextImageId++,
+      extension: extension,
+      imageProvider: MemoryImage(bytes),
+      pageIndex: pageIndex,
+      pageSize: page.size,
+      invertible: false,
+      backgroundFit: .contain,
+      onMoveImage: onMoveImage,
+      onDeleteImage: onDeleteImage,
+      onMiscChange: autosaveAfterDelay,
+      onLoad: () => setState(() {}),
+      assetCache: coreInfo.assetCache,
+    );
+    setState(() {
+      final previous = page.backgroundImage;
+      page.backgroundImage = image;
+      drawing!.tracingIds.add(image.id);
+      drawing!.tracingHidden = false;
+      _drawingSaved = false;
+      _applyTracingOpacity();
+      history.recordChange(
+        HistoricBackgroundImageChange(
+          pageIndex: pageIndex,
+          change: Change(previous: previous, current: image),
+        ),
+      );
+      autosaveAfterDelay();
+    });
+  }
+
+  /// Aha! copy: hides or shows every tracing image in the drawing.
+  Future<void> setTracingHidden(bool hidden) async {
+    if (drawing == null) return;
+    setState(() {
+      drawing!.tracingHidden = hidden;
+      _applyTracingOpacity();
+    });
+    if (FileManager.doesFileExist(coreInfo.filePath + Editor.extension)) {
+      await NoteDrawings.save(coreInfo.filePath, drawing!);
+    } else {
+      _drawingSaved = false;
+    }
+  }
+
+  /// Aha! copy: removes the current page's tracing image (bringing back
+  /// the drawing's textured paper, if it has one). Undo puts it back.
+  void removeTracingImage() {
+    if (coreInfo.readOnly || !_pageHasTracing) return;
+    final pageIndex = currentPageIndex;
+    final page = coreInfo.pages[pageIndex];
+    final previous = page.backgroundImage;
+    setState(() {
+      page.backgroundImage = _paperImage(pageIndex, page.size);
+      history.recordChange(
+        HistoricBackgroundImageChange(
+          pageIndex: pageIndex,
+          change: Change(previous: previous, current: page.backgroundImage),
+        ),
+      );
+      autosaveAfterDelay();
+    });
+  }
+
+  /// Aha! copy: whether the next touch on the page picks a colour.
+  var pickingColour = false;
+
+  /// Aha! copy: takes the colour at [globalPosition] on the page (the
+  /// topmost stroke there, or the paper) for the current pen.
+  void pickColourAt(Offset globalPosition) {
+    final pageIndex = onWhichPageIsFocalPoint(globalPosition);
+    if (pageIndex == null) return;
+    final page = coreInfo.pages[pageIndex];
+    final position = page.renderBox!.globalToLocal(globalPosition);
+    Color? picked;
+    for (final stroke in page.strokes.reversed) {
+      if (stroke.highQualityPath.contains(position)) {
+        picked = stroke.color.withAlpha(255);
+        break;
+      }
+    }
+    picked ??= coreInfo.backgroundColor ?? InnerCanvas.defaultBackgroundColor;
+    pickingColour = false;
+    setColor(picked);
+  }
 
   /// Aha! copy: shows [pattern] as the drawing's guide grid (undoable).
   void setDrawingGrid(CanvasBackgroundPattern pattern) => setState(() {
@@ -2310,6 +2514,7 @@ class EditorState extends State<Editor> {
       flipView = false;
       await NoteDrawings.remove(coreInfo.filePath);
     }
+    _applyDrawingMode();
     if (mounted) setState(() {});
   }
 
@@ -2566,7 +2771,7 @@ class EditorState extends State<Editor> {
 
   void insertPageAfter(int pageIndex) => setState(() {
     if (coreInfo.readOnly) return;
-    final page = EditorPage(size: _newPageSize);
+    final page = _newPage(pageIndex + 1);
     coreInfo.pages.insert(pageIndex + 1, page);
     listenToQuillChanges(page.quill, pageIndex + 1);
     history.recordChange(
@@ -2679,6 +2884,7 @@ class EditorState extends State<Editor> {
   @override
   void dispose() {
     unawaited(_cleanUpAsync());
+    Pen.drawingMode = false; // Aha! copy: back to note pens
 
     DynamicMaterialApp.removeFullscreenListener(_setState);
 

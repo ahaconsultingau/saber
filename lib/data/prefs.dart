@@ -408,6 +408,13 @@ class Stows {
     volatile: !_isOnMainIsolate,
   );
 
+  /// Aha! copy: the opacity used on drawings (1 = solid).
+  final drawingOpacity = PlainStow(
+    'drawingOpacity',
+    1.0,
+    volatile: !_isOnMainIsolate,
+  );
+
   /// Aha! copy: the paper and shape last chosen for a new drawing.
   final newDrawingGrid = PlainStow(
     'newDrawingGrid',
@@ -418,6 +425,11 @@ class Stows {
   final newDrawingShape = PlainStow(
     'newDrawingShape',
     'portrait',
+    volatile: !_isOnMainIsolate,
+  );
+  final newDrawingPaper = PlainStow(
+    'newDrawingPaper',
+    '',
     volatile: !_isOnMainIsolate,
   );
   final newNoteLineHeight = PlainStow(

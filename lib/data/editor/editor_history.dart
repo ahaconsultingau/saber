@@ -254,3 +254,14 @@ class const HistoricBackgroundPatternChange({
   HistoricBackgroundPatternChange reverse() =>
       .new(pageIndex: pageIndex, change: change.reverse());
 }
+
+/// Aha! copy: a page's background picture was changed (e.g. a tracing
+/// image added or removed on a drawing).
+class const HistoricBackgroundImageChange({
+  required final int pageIndex,
+  required final Change<EditorImage?> change,
+}) extends Historic {
+  @override
+  HistoricBackgroundImageChange reverse() =>
+      .new(pageIndex: pageIndex, change: change.reverse());
+}

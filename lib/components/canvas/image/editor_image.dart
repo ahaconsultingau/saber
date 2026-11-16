@@ -90,6 +90,10 @@ sealed class EditorImage extends ChangeNotifier {
   /// The BoxFit used if this is a page's background image
   BoxFit backgroundFit;
 
+  /// Aha! copy: how strongly the picture shows on screen (not saved), e.g.
+  /// 0.3 for a drawing's tracing image, 0 while it's hidden.
+  double displayOpacity = 1;
+
   @protected
   new({
     required this.id,

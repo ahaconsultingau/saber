@@ -23,6 +23,12 @@ home:
     landscape: Landscape
     square: Square
     drawingBadge: Drawing
+    papers:
+      sketch: Sketch
+      watercolour: Watercolour
+      canvas: Canvas
+      kraft: Kraft
+      tonedGrey: Toned grey
   tabs:
     home: Home
     browse: Browse
@@ -349,6 +355,8 @@ editor:
   penOptions:
     size: Size
     feathering: Feathering
+    opacity: Opacity
+    steadiness: Steadiness
     eraserSize: Eraser size
   colors:
     colorPicker: Color picker
@@ -392,6 +400,13 @@ editor:
     row: Draw
     grid: Grid
     flipView: Flip view
+    pickColour: Pick colour
+    pickColourHint: Touch the page to take a colour from it
+    tracingImage: Tracing image
+    hideTracing: Hide tracing image
+    showTracing: Show tracing image
+    addTracing: Tracing image on this page
+    removeTracing: Remove from this page
     flipped: Flipped view
     makeDrawing: Make this a drawing
     makeNote: Make this a note

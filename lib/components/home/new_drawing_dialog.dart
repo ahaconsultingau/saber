@@ -38,6 +38,7 @@ class _NewDrawingDialogState extends State<NewDrawingDialog> {
       ? stows.newDrawingGrid.value
       : CanvasBackgroundPattern.none;
   late var shape = DrawingShape.fromName(stows.newDrawingShape.value);
+  late DrawingPaper? paper = DrawingPaper.fromName(stows.newDrawingPaper.value);
   late List<String> folders = widget.folders ?? [widget.initialFolder];
   String? error;
 
@@ -67,13 +68,63 @@ class _NewDrawingDialogState extends State<NewDrawingDialog> {
     final path = await NewNoteDialog.pathFor(folder, trimmed);
     stows.newDrawingGrid.value = grid;
     stows.newDrawingShape.value = shape.name;
+    stows.newDrawingPaper.value = paper?.name ?? '';
     EditorCoreInfo.nextNewNotePattern = null;
-    EditorCoreInfo.nextNewDrawing = DrawingSettings(shape: shape, grid: grid);
+    EditorCoreInfo.nextNewDrawing = DrawingSettings(
+      shape: shape,
+      grid: paper == null ? grid : .none,
+      paper: paper,
+    );
     if (mounted) Navigator.of(context).pop(path);
   }
 
   String _folderLabel(String path) =>
       path == '/' ? t.home.newNote.topFolder : path.substring(1);
+
+  String _paperLabel(DrawingPaper paper) => switch (paper) {
+    .sketch => t.home.newDrawing.papers.sketch,
+    .watercolour => t.home.newDrawing.papers.watercolour,
+    .canvas => t.home.newDrawing.papers.canvas,
+    .kraft => t.home.newDrawing.papers.kraft,
+    .tonedGrey => t.home.newDrawing.papers.tonedGrey,
+  };
+
+  Widget _swatch({
+    required Key key,
+    required bool selected,
+    required VoidCallback onTap,
+    required Widget preview,
+    required String label,
+  }) {
+    final colorScheme = ColorScheme.of(context);
+    return InkWell(
+      key: key,
+      borderRadius: BorderRadius.circular(10),
+      onTap: onTap,
+      child: Column(
+        mainAxisSize: .min,
+        spacing: 4,
+        children: [
+          Container(
+            width: 72,
+            height: 72,
+            decoration: BoxDecoration(
+              borderRadius: BorderRadius.circular(8),
+              border: Border.all(
+                color: selected
+                    ? colorScheme.primary
+                    : colorScheme.outlineVariant,
+                width: selected ? 3 : 1,
+              ),
+            ),
+            clipBehavior: Clip.antiAlias,
+            child: preview,
+          ),
+          Text(label, style: TextTheme.of(context).bodySmall),
+        ],
+      ),
+    );
+  }
 
   String _shapeLabel(DrawingShape shape) => switch (shape) {
     .portrait => t.home.newDrawing.portrait,
@@ -134,38 +185,41 @@ class _NewDrawingDialogState extends State<NewDrawingDialog> {
                 runSpacing: 8,
                 children: [
                   for (final pattern in DrawRow.grids)
-                    InkWell(
+                    _swatch(
                       key: ValueKey('newDrawingPaper-${pattern.name}'),
-                      borderRadius: BorderRadius.circular(10),
-                      onTap: () => setState(() => grid = pattern),
-                      child: Column(
-                        mainAxisSize: .min,
-                        spacing: 4,
-                        children: [
-                          SizedBox(
-                            width: 72,
-                            height: 72,
-                            child: FittedBox(
-                              child: CanvasBackgroundPreview(
-                                selected: pattern == grid,
-                                invert: false,
-                                backgroundColor: Colors.white,
-                                backgroundPattern: pattern,
-                                backgroundImage: null,
-                                pageSize: const Size(1000, 1000),
-                                lineHeight: 50,
-                                lineThickness: 3,
-                              ),
-                            ),
-                          ),
-                          Text(
-                            pattern == .none
-                                ? strings.plain
-                                : pattern.localizedName,
-                            style: textTheme.bodySmall,
-                          ),
-                        ],
+                      selected: paper == null && pattern == grid,
+                      onTap: () => setState(() {
+                        grid = pattern;
+                        paper = null;
+                      }),
+                      preview: FittedBox(
+                        child: CanvasBackgroundPreview(
+                          selected: false,
+                          invert: false,
+                          backgroundColor: Colors.white,
+                          backgroundPattern: pattern,
+                          backgroundImage: null,
+                          pageSize: const Size(1000, 1000),
+                          lineHeight: 50,
+                          lineThickness: 3,
+                        ),
                       ),
+                      label: pattern == .none
+                          ? strings.plain
+                          : pattern.localizedName,
+                    ),
+                  // Aha! copy: textured papers.
+                  for (final texture in DrawingPaper.values)
+                    _swatch(
+                      key: ValueKey('newDrawingPaper-${texture.name}'),
+                      selected: paper == texture,
+                      onTap: () => setState(() => paper = texture),
+                      preview: Image.asset(
+                        texture.asset,
+                        fit: BoxFit.cover,
+                        cacheWidth: 144,
+                      ),
+                      label: _paperLabel(texture),
                     ),
                 ],
               ),

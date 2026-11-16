@@ -231,7 +231,10 @@ class _CanvasImageState extends State<CanvasImage> {
         top: 0,
         right: 0,
         bottom: 0,
-        child: unpositioned,
+        // Aha! copy: a drawing's tracing image shows faded (or hidden).
+        child: widget.image.displayOpacity < 1
+            ? Opacity(opacity: widget.image.displayOpacity, child: unpositioned)
+            : unpositioned,
       );
     }
     return AnimatedPositioned(

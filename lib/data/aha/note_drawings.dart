@@ -22,11 +22,48 @@ enum DrawingShape {
       values.where((s) => s.name == name).firstOrNull ?? portrait;
 }
 
+/// Aha! copy: textured papers for drawings. Each page gets the texture as
+/// its background picture, so the standard Saber apps show it too.
+enum DrawingPaper {
+  sketch('sketch'),
+  watercolour('watercolour'),
+  canvas('canvas'),
+  kraft('kraft'),
+  tonedGrey('toned_grey');
+
+  new(this._file);
+  final String _file;
+
+  String get asset => 'assets/images/paper/$_file.jpg';
+
+  static DrawingPaper? fromName(String? name) =>
+      values.where((p) => p.name == name).firstOrNull;
+}
+
 /// Aha! copy: what makes a note a drawing, and its drawing settings.
 class DrawingSettings {
-  new({this.shape = .portrait, this.grid = .none});
+  new({
+    this.shape = .portrait,
+    this.grid = .none,
+    this.paper,
+    Set<int>? tracingIds,
+    this.tracingHidden = false,
+  }) : tracingIds = tracingIds ?? {};
 
   DrawingShape shape;
+
+  /// The textured paper new pages get, or null for plain paper (with
+  /// [grid]).
+  DrawingPaper? paper;
+
+  /// The ids of page pictures that are tracing images: shown faded (or
+  /// hidden) on the tablet. The standard Saber apps show them as ordinary
+  /// page pictures.
+  final Set<int> tracingIds;
+  bool tracingHidden;
+
+  /// How strongly a tracing image shows.
+  static const tracingOpacity = 0.3;
 
   /// The guide grid chosen for the drawing ([CanvasBackgroundPattern.none]
   /// for plain paper). The note's own pattern is what shows; this remembers
@@ -37,11 +74,20 @@ class DrawingSettings {
     'v': 1,
     'shape': shape.name,
     'grid': grid.name,
+    if (paper != null) 'paper': paper!.name,
+    if (tracingIds.isNotEmpty) 'tracing': tracingIds.toList(),
+    if (tracingHidden) 'tracingHidden': true,
   };
 
   factory fromJson(Map<String, dynamic> json) => DrawingSettings(
     shape: DrawingShape.fromName(json['shape'] as String?),
     grid: CanvasBackgroundPattern.fromName(json['grid'] as String?),
+    paper: DrawingPaper.fromName(json['paper'] as String?),
+    tracingIds: {
+      for (final id in json['tracing'] as List? ?? const [])
+        if (id is int) id,
+    },
+    tracingHidden: json['tracingHidden'] == true,
   );
 }
 

@@ -163,6 +163,7 @@ class EditorCoreInfo {
     Map<String, dynamic> json, {
     required String filePath,
     required bool onlyFirstPage,
+    bool keepDrawingOrder = false,
   }) {
     ReadOnlyReason? readOnlyReason;
     final fileVersion = json['v'] as int? ?? 0;
@@ -241,7 +242,7 @@ class EditorCoreInfo {
             : null,
         onlyFirstPage: onlyFirstPage,
       )
-      .._sortStrokes();
+      .._sortStrokes(keepDrawingOrder: keepDrawingOrder);
   }
 
   /// Old json format is just a list of strokes
@@ -379,9 +380,13 @@ class EditorCoreInfo {
     }
   }
 
-  void _sortStrokes() {
+  /// Saber groups strokes by pen type. Aha! copy: a drawing keeps them in
+  /// the order they were drawn ([keepDrawingOrder]), so later paint stays
+  /// on top.
+  void _sortStrokes({bool keepDrawingOrder = false}) {
     for (final page in pages) {
-      page.sortStrokes();
+      page.keepDrawingOrder = keepDrawingOrder;
+      if (!keepDrawingOrder) page.sortStrokes();
     }
   }
 
@@ -410,6 +415,7 @@ class EditorCoreInfo {
       bsonBytes: bsonBytes,
       path: path,
       onlyFirstPage: onlyFirstPage,
+      keepDrawingOrder: NoteDrawings.isDrawing(path),
     );
   }
 
@@ -420,6 +426,7 @@ class EditorCoreInfo {
     required String path,
     required bool onlyFirstPage,
     bool alwaysUseIsolate = false,
+    bool keepDrawingOrder = false,
   }) async {
     EditorCoreInfo coreInfo;
     try {
@@ -428,6 +435,7 @@ class EditorCoreInfo {
         bsonBytes,
         path,
         onlyFirstPage,
+        keepDrawingOrder,
       );
 
       final length = jsonString?.length ?? bsonBytes!.length;
@@ -469,8 +477,9 @@ class EditorCoreInfo {
     String? jsonString,
     Uint8List? bsonBytes,
     String path,
-    bool onlyFirstPage,
-  ) {
+    bool onlyFirstPage, [
+    bool keepDrawingOrder = false,
+  ]) {
     final dynamic json;
     try {
       if (bsonBytes != null) {
@@ -500,6 +509,7 @@ class EditorCoreInfo {
         json as Map<String, dynamic>,
         filePath: path,
         onlyFirstPage: onlyFirstPage,
+        keepDrawingOrder: keepDrawingOrder,
       );
     }
   }
