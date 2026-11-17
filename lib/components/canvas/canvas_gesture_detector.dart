@@ -419,6 +419,10 @@ class CanvasGestureDetectorState extends State<CanvasGestureDetector> {
         transformation;
   }
 
+  /// Aha! copy: a touch wider than this (logical pixels, radius) is a palm,
+  /// not a fingertip (about 5 to 10).
+  static const palmRadius = 22.0;
+
   /// Aha! copy (pen guard): when the pen was last seen, hovering or touching.
   DateTime? _lastStylusSeen;
 
@@ -565,6 +569,10 @@ class CanvasGestureDetectorState extends State<CanvasGestureDetector> {
                   twoFingerPanOnly:
                       stows.twoFingerScrollOnly.value || singleFingerPanLock,
                   shouldIgnoreTouch: _shouldIgnoreTouch,
+                  // Aha! copy: palms at the bottom, or palm-sized, are
+                  // ignored altogether.
+                  palmZone: stows.palmZone.value,
+                  palmRadius: stows.palmSizeGuard.value ? palmRadius : null,
                   panAxis: axisAlignedPanLock ? PanAxis.aligned : PanAxis.free,
 
                   // Smoother scrolling fling gesture than the default

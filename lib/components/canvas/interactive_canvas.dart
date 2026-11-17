@@ -46,6 +46,8 @@ class InteractiveCanvasViewer extends StatefulWidget {
     this.panEnabled = true,
     this.twoFingerPanOnly = false,
     this.shouldIgnoreTouch,
+    this.palmZone = 0,
+    this.palmRadius,
     this.scaleEnabled = true,
     this.scaleFactor = kDefaultMouseScrollToScaleFactor,
     this.transformationController,
@@ -95,6 +97,8 @@ class InteractiveCanvasViewer extends StatefulWidget {
     this.panEnabled = true,
     this.twoFingerPanOnly = false,
     this.shouldIgnoreTouch,
+    this.palmZone = 0,
+    this.palmRadius,
     this.scaleEnabled = true,
     this.scaleFactor = 200.0,
     this.transformationController,
@@ -227,6 +231,14 @@ class InteractiveCanvasViewer extends StatefulWidget {
   /// a gesture and on every update, so a palm already down stops as soon as
   /// the pen comes near. Returns whether the touch was ignored.
   final bool Function()? shouldIgnoreTouch;
+
+  /// Aha! copy: touches starting in this share of the page's height, from
+  /// the bottom, are ignored (a resting palm). 0 for none.
+  final double palmZone;
+
+  /// Aha! copy: touches wider than this radius (logical pixels) are
+  /// ignored as palms. Null for no limit.
+  final double? palmRadius;
 
   /// If false, the user will be prevented from scaling.
   ///
@@ -772,6 +784,22 @@ class _InteractiveCanvasViewerState extends State<InteractiveCanvasViewer>
   var _touchGestureActive = false;
   var _touchGestureSetAside = false;
 
+  /// Aha! copy: whether a touch that just came down is a palm: a wide,
+  /// flat contact, or one in the palm zone along the bottom of the page.
+  /// A palm is ignored completely (it never joins a gesture).
+  bool _isPalm(PointerDownEvent event) {
+    if (event.kind != PointerDeviceKind.touch) return false;
+    if (widget.palmRadius case final radius? when event.radiusMajor > radius) {
+      return true;
+    }
+    final zone = widget.palmZone;
+    if (zone <= 0) return false;
+    final box = context.findRenderObject();
+    if (box is! RenderBox || !box.hasSize) return false;
+    final local = box.globalToLocal(event.position);
+    return local.dy > box.size.height * (1 - zone);
+  }
+
   void _onPenScaleStart(ScaleStartDetails details) {
     if (_touchGestureActive && !_touchGestureSetAside) {
       // A wrist or finger was already down: finish its gesture so the pen
@@ -1266,11 +1294,14 @@ class _InteractiveCanvasViewerState extends State<InteractiveCanvasViewer>
                     ..onUpdate = _onPenScaleUpdate
                     ..onEnd = _onPenScaleEnd,
                 ),
-            ScaleGestureRecognizer:
-                GestureRecognizerFactoryWithHandlers<ScaleGestureRecognizer>(
-                  () => ScaleGestureRecognizer(
+            _TouchScaleGestureRecognizer:
+                GestureRecognizerFactoryWithHandlers<
+                  _TouchScaleGestureRecognizer
+                >(
+                  () => _TouchScaleGestureRecognizer(
                     debugOwner: this,
                     supportedDevices: _nonPenDevices,
+                    isPalm: _isPalm,
                   ),
                   (recognizer) => recognizer
                     ..onStart = _onTouchScaleStart
@@ -1463,6 +1494,17 @@ Axis? _getPanAxis(Offset point1, Offset point2) {
   final double x = point2.dx - point1.dx;
   final double y = point2.dy - point1.dy;
   return x.abs() > y.abs() ? Axis.horizontal : Axis.vertical;
+}
+
+/// Aha! copy: the fingers' scale gesture, which leaves out palms.
+class _TouchScaleGestureRecognizer extends ScaleGestureRecognizer {
+  new({super.debugOwner, super.supportedDevices, required this.isPalm});
+
+  final bool Function(PointerDownEvent) isPalm;
+
+  @override
+  bool isPointerAllowed(PointerDownEvent event) =>
+      !isPalm(event) && super.isPointerAllowed(event);
 }
 
 /// Aha! copy: the pen's own scale gesture, so fingers on the page don't

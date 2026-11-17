@@ -135,6 +135,10 @@ class Translations$settings$en {
 	final Translations _root; // ignore: unused_field
 
 	// Translations
+
+	/// en: 'Off'
+	String get palmZoneOff => 'Off';
+
 	late final Translations$settings$prefCategories$en prefCategories = Translations$settings$prefCategories$en.internal(_root);
 	late final Translations$settings$newPages$en newPages = Translations$settings$newPages$en.internal(_root);
 	late final Translations$settings$prefLabels$en prefLabels = Translations$settings$prefLabels$en.internal(_root);
@@ -920,6 +924,15 @@ class Translations$settings$prefLabels$en {
 	/// en: 'Scroll with two fingers only'
 	String get twoFingerScrollOnly => 'Scroll with two fingers only';
 
+	/// en: 'Ignore touch along the bottom'
+	String get palmZone => 'Ignore touch along the bottom';
+
+	/// en: 'Ignore palm-sized touches'
+	String get palmSizeGuard => 'Ignore palm-sized touches';
+
+	/// en: 'Full screen while writing'
+	String get editorImmersive => 'Full screen while writing';
+
 	/// en: 'Prompt you to rename new notes'
 	String get editorPromptRename => 'Prompt you to rename new notes';
 
@@ -987,6 +1000,15 @@ class Translations$settings$prefDescriptions$en {
 
 	/// en: 'One finger or a sleeve won't move the page'
 	String get twoFingerScrollOnly => 'One finger or a sleeve won\'t move the page';
+
+	/// en: 'Rest your palm at the bottom of the screen; the pen still writes there'
+	String get palmZone => 'Rest your palm at the bottom of the screen; the pen still writes there';
+
+	/// en: 'A wide touch (your palm) does nothing anywhere on the page'
+	String get palmSizeGuard => 'A wide touch (your palm) does nothing anywhere on the page';
+
+	/// en: 'Hides the system bars in a note, so a palm at the edge can't swipe Saber away; swipe twice to leave'
+	String get editorImmersive => 'Hides the system bars in a note, so a palm at the edge can\'t swipe Saber away; swipe twice to leave';
 
 	/// en: 'You can always rename notes later'
 	String get editorPromptRename => 'You can always rename notes later';

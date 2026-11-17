@@ -130,6 +130,7 @@ sentry:
       no: No
       later: Ask me later
 settings:
+  palmZoneOff: "Off"
   prefCategories:
     general: General
     writing: Writing
@@ -173,6 +174,9 @@ settings:
     penGuard: Ignore touch while the pen is near
     penGuardHold: Keep ignoring touch after the pen lifts
     twoFingerScrollOnly: Scroll with two fingers only
+    palmZone: Ignore touch along the bottom
+    palmSizeGuard: Ignore palm-sized touches
+    editorImmersive: Full screen while writing
     editorPromptRename: Prompt you to rename new notes
     recentColorsDontSavePresets: Don't save preset colors in recent colors
     recentColorsLength: How many recent colors to store
@@ -197,6 +201,9 @@ settings:
     penGuard: Stops your palm moving the page as you write
     penGuardHold: In seconds, after the pen was last near the screen
     twoFingerScrollOnly: One finger or a sleeve won't move the page
+    palmZone: Rest your palm at the bottom of the screen; the pen still writes there
+    palmSizeGuard: A wide touch (your palm) does nothing anywhere on the page
+    editorImmersive: Hides the system bars in a note, so a palm at the edge can't swipe Saber away; swipe twice to leave
     editorPromptRename: You can always rename notes later
     printPageIndicators: Show page indicators in exports
     autosave: Auto-save after a short delay, or never

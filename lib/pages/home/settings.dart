@@ -445,6 +445,31 @@ class _SettingsPageState extends State<SettingsPage> {
                     ),
                   ),
                 ),
+                SettingsSelection(
+                  title: t.settings.prefLabels.palmZone,
+                  subtitle: t.settings.prefDescriptions.palmZone,
+                  icon: Icons.front_hand_outlined,
+                  pref: stows.palmZone,
+                  optionsWidth: 56,
+                  options: [
+                    ToggleButtonsOption(0.0, Text(t.settings.palmZoneOff)),
+                    const ToggleButtonsOption(0.125, Text('⅛')),
+                    const ToggleButtonsOption(0.25, Text('¼')),
+                    const ToggleButtonsOption(1 / 3, Text('⅓')),
+                  ],
+                ),
+                SettingsSwitch(
+                  title: t.settings.prefLabels.palmSizeGuard,
+                  subtitle: t.settings.prefDescriptions.palmSizeGuard,
+                  icon: Icons.pan_tool_outlined,
+                  pref: stows.palmSizeGuard,
+                ),
+                SettingsSwitch(
+                  title: t.settings.prefLabels.editorImmersive,
+                  subtitle: t.settings.prefDescriptions.editorImmersive,
+                  icon: Icons.fullscreen,
+                  pref: stows.editorImmersive,
+                ),
                 SettingsSwitch(
                   title: t.settings.prefLabels.twoFingerScrollOnly,
                   subtitle: t.settings.prefDescriptions.twoFingerScrollOnly,

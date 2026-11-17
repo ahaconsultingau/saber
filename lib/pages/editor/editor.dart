@@ -207,6 +207,16 @@ class EditorState extends State<Editor> {
   @override
   void initState() {
     DynamicMaterialApp.addFullscreenListener(_setState);
+    // Aha! copy: save at once when the app is left or closed (a palm
+    // swiping it away lost notes), and keep the system bars hidden while
+    // writing so a palm at the edge can't swipe the app away in one go.
+    _lifecycle = AppLifecycleListener(
+      onHide: _saveNowIfNeeded,
+      onPause: _saveNowIfNeeded,
+      onDetach: _saveNowIfNeeded,
+      onShow: _applyImmersive,
+    );
+    _applyImmersive();
 
     _initAsync();
     _assignKeybindings();
@@ -2371,6 +2381,19 @@ class EditorState extends State<Editor> {
 
   var _leaving = false;
 
+  AppLifecycleListener? _lifecycle;
+
+  void _saveNowIfNeeded() {
+    if (savingState.value == .waitingToSave) saveToFile();
+  }
+
+  static bool get _isMobile => Platform.isAndroid || Platform.isIOS;
+
+  void _applyImmersive() {
+    if (!_isMobile || !stows.editorImmersive.value) return;
+    SystemChrome.setEnabledSystemUIMode(SystemUiMode.immersiveSticky);
+  }
+
   /// Aha! copy: the note's drawing settings, or null for an ordinary note.
   DrawingSettings? drawing;
   var _drawingSaved = true;
@@ -3072,6 +3095,12 @@ class EditorState extends State<Editor> {
 
   @override
   void dispose() {
+    _lifecycle?.dispose();
+    if (_isMobile &&
+        stows.editorImmersive.value &&
+        !DynamicMaterialApp.isFullscreen) {
+      SystemChrome.setEnabledSystemUIMode(SystemUiMode.edgeToEdge);
+    }
     unawaited(_cleanUpAsync());
     Pen.drawingMode = false; // Aha! copy: back to note pens
 

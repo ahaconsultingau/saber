@@ -220,6 +220,25 @@ class Stows {
     volatile: !_isOnMainIsolate,
   );
 
+  /// Aha! copy: the bottom share of the page where touch (a resting palm)
+  /// is ignored; the pen still writes there. 0 turns it off.
+  final palmZone = PlainStow('palmZone', 0.125, volatile: !_isOnMainIsolate);
+
+  /// Aha! copy: ignore wide, flat touches (a palm) anywhere on the page.
+  final palmSizeGuard = PlainStow(
+    'palmSizeGuard',
+    true,
+    volatile: !_isOnMainIsolate,
+  );
+
+  /// Aha! copy: notes open full screen (the system bars hidden), so a palm
+  /// at the screen's edge can't swipe the app away in one go.
+  final editorImmersive = PlainStow(
+    'editorImmersive',
+    true,
+    volatile: !_isOnMainIsolate,
+  );
+
   /// Aha! copy: one finger (or a sleeve) doesn't move the page; scroll and
   /// zoom with two fingers.
   final twoFingerScrollOnly = PlainStow(
