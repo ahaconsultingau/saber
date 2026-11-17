@@ -12,5 +12,6 @@ extension CanvasBackgroundPatternLocalized on CanvasBackgroundPattern {
     .staffs => t.editor.menu.bgPatterns.staffs,
     .tablature => t.editor.menu.bgPatterns.tablature,
     .cornell => t.editor.menu.bgPatterns.cornell,
+    .isometric => t.editor.menu.bgPatterns.isometric,
   };
 }

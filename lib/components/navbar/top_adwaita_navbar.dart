@@ -79,9 +79,15 @@ class const _TabContent({required final HomeRoute route})
       spacing: 8,
       children: [
         route.destination.icon,
-        Text(
-          route.destination.label,
-          style: const TextStyle(fontWeight: .w600),
+        // Aha! copy: five tabs (with New drawing) can be too wide on a
+        // narrow window: the label shortens instead of overflowing.
+        Flexible(
+          child: Text(
+            route.destination.label,
+            style: const TextStyle(fontWeight: .w600),
+            overflow: TextOverflow.ellipsis,
+            maxLines: 1,
+          ),
         ),
       ],
     );

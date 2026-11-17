@@ -10,27 +10,40 @@ import 'package:flutter/foundation.dart' show kDebugMode;
 import 'package:flutter/gestures.dart';
 import 'package:flutter/services.dart';
 import 'package:flutter_quill/flutter_quill.dart' as flutter_quill;
+import 'package:go_router/go_router.dart';
 import 'package:keybinder/keybinder.dart';
 import 'package:logging/logging.dart';
 import 'package:material_ui/material_ui.dart';
 import 'package:path/path.dart' as p;
 import 'package:pdfrx/pdfrx.dart';
+import 'package:perfect_freehand/perfect_freehand.dart';
+import 'package:saber/components/aha/layers_panel.dart';
+import 'package:saber/components/aha/lock_widgets.dart';
+import 'package:saber/components/bookmarks/bookmarks_panel.dart';
 import 'package:saber/components/canvas/_asset_cache.dart';
 import 'package:saber/components/canvas/_stroke.dart';
 import 'package:saber/components/canvas/canvas.dart';
 import 'package:saber/components/canvas/canvas_gesture_detector.dart';
 import 'package:saber/components/canvas/canvas_image.dart';
 import 'package:saber/components/canvas/image/editor_image.dart';
+import 'package:saber/components/canvas/inner_canvas.dart';
 import 'package:saber/components/canvas/save_indicator.dart';
+import 'package:saber/components/editor/floating_side_panel.dart';
 import 'package:saber/components/editor/read_only_banner.dart';
 import 'package:saber/components/theming/adaptive_alert_dialog.dart';
 import 'package:saber/components/theming/adaptive_icon.dart';
 import 'package:saber/components/theming/dynamic_material_app.dart';
 import 'package:saber/components/theming/saber_theme.dart';
 import 'package:saber/components/toolbar/color_bar.dart';
+import 'package:saber/components/toolbar/convert_to_text_dialog.dart';
+import 'package:saber/components/toolbar/draw_row.dart';
 import 'package:saber/components/toolbar/editor_bottom_sheet.dart';
 import 'package:saber/components/toolbar/editor_page_manager.dart';
+import 'package:saber/components/toolbar/insert_table_dialog.dart';
 import 'package:saber/components/toolbar/toolbar.dart';
+import 'package:saber/data/aha/note_drawings.dart';
+import 'package:saber/data/aha/note_locks.dart';
+import 'package:saber/data/bookmarks/note_bookmarks.dart';
 import 'package:saber/data/editor/editor_core_info.dart';
 import 'package:saber/data/editor/editor_exporter.dart';
 import 'package:saber/data/editor/editor_history.dart';
@@ -38,19 +51,25 @@ import 'package:saber/data/editor/page.dart';
 import 'package:saber/data/extensions/change_notifier_extensions.dart';
 import 'package:saber/data/extensions/matrix4_extensions.dart';
 import 'package:saber/data/file_manager/file_manager.dart';
+import 'package:saber/data/handwriting/handwriting_recognizer.dart';
 import 'package:saber/data/nextcloud/saber_syncer.dart';
 import 'package:saber/data/prefs.dart';
+import 'package:saber/data/routes.dart';
 import 'package:saber/data/tools/_tool.dart';
 import 'package:saber/data/tools/eraser.dart';
+import 'package:saber/data/tools/fill.dart';
 import 'package:saber/data/tools/highlighter.dart';
 import 'package:saber/data/tools/laser_pointer.dart';
 import 'package:saber/data/tools/pen.dart';
 import 'package:saber/data/tools/pencil.dart';
 import 'package:saber/data/tools/select.dart';
 import 'package:saber/data/tools/shape_pen.dart';
+import 'package:saber/data/tools/table_lines.dart';
 import 'package:saber/i18n/strings.g.dart';
 import 'package:saber/pages/home/whiteboard.dart';
+import 'package:sbn/canvas_background_pattern.dart';
 import 'package:sbn/change.dart';
+import 'package:sbn/tool_id.dart';
 import 'package:super_clipboard/super_clipboard.dart';
 
 class const _PhotoInfo(final Uint8List bytes, final String extension);
@@ -127,7 +146,10 @@ class EditorState extends State<Editor> {
     switch (stows.lastTool.value) {
       case .fountainPen:
         if (Pen.currentPen.toolId != stows.lastTool.value) {
-          Pen.currentPen = Pen.fountainPen();
+          // The brush saves as a fountain pen too.
+          Pen.currentPen = stows.lastPenIsBrush.value
+              ? Pen.brush()
+              : Pen.fountainPen();
         }
         return Pen.currentPen;
       case .ballpointPen:
@@ -158,7 +180,8 @@ class EditorState extends State<Editor> {
   set currentTool(Tool tool) {
     _currentTool = tool;
     if (tool is! Eraser) _lastNonEraserTool = tool;
-    stows.lastTool.value = tool.toolId;
+    // Aha! copy: the paint bucket isn't remembered as the last pen.
+    if (tool is! FillTool) stows.lastTool.value = tool.toolId;
   }
 
   ValueNotifier<SavingState> savingState = ValueNotifier(SavingState.saved);
@@ -184,6 +207,16 @@ class EditorState extends State<Editor> {
   @override
   void initState() {
     DynamicMaterialApp.addFullscreenListener(_setState);
+    // Aha! copy: save at once when the app is left or closed (a palm
+    // swiping it away lost notes), and keep the system bars hidden while
+    // writing so a palm at the edge can't swipe the app away in one go.
+    _lifecycle = AppLifecycleListener(
+      onHide: _saveNowIfNeeded,
+      onPause: _saveNowIfNeeded,
+      onDetach: _saveNowIfNeeded,
+      onShow: _applyImmersive,
+    );
+    _applyImmersive();
 
     _initAsync();
     _assignKeybindings();
@@ -218,6 +251,30 @@ class EditorState extends State<Editor> {
     for (int pageIndex = 0; pageIndex < coreInfo.pages.length; pageIndex++) {
       listenToQuillChanges(coreInfo.pages[pageIndex].quill, pageIndex);
     }
+
+    if (coreInfo.createdFresh && !coreInfo.readOnly) {
+      _applyNewNoteStartingTool();
+    }
+
+    bookmarks = await NoteBookmarks.load(coreInfo.filePath, coreInfo.pages);
+
+    // Aha! copy: drawings (see NoteDrawings).
+    if (coreInfo.newDrawing case final newDrawing?) {
+      drawing = newDrawing;
+      _drawingSaved = false;
+      if (!coreInfo.readOnly) {
+        // A new drawing starts with the brush in hand.
+        Pen.currentPen = Pen.brush();
+        currentTool = Pen.currentPen;
+      }
+    } else if (coreInfo.filePath.isNotEmpty) {
+      drawing = await NoteDrawings.load(coreInfo.filePath);
+    }
+    _applyTracingOpacity();
+    if (drawing?.paper case final paper?) {
+      _paperBytes = (await rootBundle.load(paper.asset)).buffer.asUint8List();
+    }
+    _applyDrawingMode();
 
     if (coreInfo.isEmpty) {
       createPage(-1);
@@ -293,7 +350,7 @@ class EditorState extends State<Editor> {
   /// plus an extra blank page
   void createPage(int pageIndex) {
     while (pageIndex >= coreInfo.pages.length - 1) {
-      final page = EditorPage();
+      final page = _newPage(coreInfo.pages.length);
       coreInfo.pages.add(page);
       listenToQuillChanges(page.quill, coreInfo.pages.length - 1);
     }
@@ -448,6 +505,25 @@ class EditorState extends State<Editor> {
 
       case (final HistoricBackgroundPatternChange historic):
         coreInfo.backgroundPattern = historic.change.previous;
+
+      case (final HistoricBackgroundImageChange historic):
+        coreInfo.pages[historic.pageIndex].backgroundImage =
+            historic.change.previous;
+
+      case (final HistoricLayersChange historic):
+        for (final MapEntry(key: stroke, value: change)
+            in historic.strokeLayers.entries) {
+          stroke.layer = change.previous;
+        }
+        if (drawing case final drawing?) {
+          drawing.layers
+            ..clear()
+            ..addAll(historic.layers.previous);
+          if (drawing.layerWithId(drawing.activeLayer) == null) {
+            drawing.activeLayer = drawing.layers.last.id;
+          }
+          _layersChanged();
+        }
     }
 
     if (historic is! HistoricMove) {
@@ -491,12 +567,24 @@ class EditorState extends State<Editor> {
   double? currentPressure;
   bool isDrawGesture(ScaleStartDetails details) {
     if (coreInfo.readOnly) return false;
+    // Aha! copy: Pick colour takes the colour under the pen instead.
+    if (pickingColour) {
+      pickColourAt(details.focalPoint);
+      return false;
+    }
 
     CanvasImage.activeListener
         .notifyListenersPlease(); // un-select active image
 
     _lastSeenPointerCountTimer?.cancel();
-    if (lastSeenPointerCount >= 2) {
+    // Aha! copy: the pen has its own gesture (fingers never join it), so a
+    // wrist or a scroll just before doesn't make a pen stroke a zoom.
+    final isPen =
+        details.kind == PointerDeviceKind.stylus ||
+        details.kind == PointerDeviceKind.invertedStylus;
+    if (isPen) {
+      lastSeenPointerCount = 1;
+    } else if (lastSeenPointerCount >= 2) {
       // was a zoom gesture, ignore
       lastSeenPointerCount = lastSeenPointerCount;
       return false;
@@ -520,7 +608,8 @@ class EditorState extends State<Editor> {
 
     if (currentTool == Tool.textEditing) {
       return false;
-    } else if (stows.editorFingerDrawing.value ||
+    } else if (isPen ||
+        stows.editorFingerDrawing.value ||
         currentPointerKind == PointerDeviceKind.stylus ||
         currentPointerKind == PointerDeviceKind.invertedStylus ||
         currentPressure != null) {
@@ -548,7 +637,7 @@ class EditorState extends State<Editor> {
     } else if (currentTool is Eraser) {
       for (final stroke in (currentTool as Eraser).checkForOverlappingStrokes(
         position,
-        page.strokes,
+        _touchableStrokes(page),
       )) {
         page.strokes.remove(stroke);
       }
@@ -565,6 +654,8 @@ class EditorState extends State<Editor> {
       }
     } else if (currentTool is LaserPointer) {
       (currentTool as LaserPointer).onDragStart(position, page, dragPageIndex!);
+    } else if (currentTool is FillTool) {
+      _fillAt(position, dragPageIndex!);
     }
 
     previousPosition = position;
@@ -592,7 +683,7 @@ class EditorState extends State<Editor> {
     } else if (currentTool is Eraser) {
       for (final stroke in (currentTool as Eraser).checkForOverlappingStrokes(
         position,
-        page.strokes,
+        _touchableStrokes(page),
       )) {
         page.strokes.remove(stroke);
       }
@@ -749,6 +840,8 @@ class EditorState extends State<Editor> {
         }
 
         createPage(newStroke.pageIndex);
+        // Aha! copy: a drawing's stroke goes on the layer in use.
+        if (drawing case final drawing?) newStroke.layer = drawing.activeLayer;
         page.insertStroke(newStroke);
         history.recordChange(HistoricAdd(strokes: [newStroke], images: []));
       } else if (currentTool is Eraser) {
@@ -781,7 +874,7 @@ class EditorState extends State<Editor> {
           select.selectResult.pageIndexStart = select.selectResult.pageIndex;
         } else {
           shouldSave = false;
-          select.onDragEnd(page.strokes, page.images);
+          select.onDragEnd(_touchableStrokes(page), page.images);
 
           if (select.selectResult.isEmpty) {
             Select.currentSelect.unselect();
@@ -861,6 +954,196 @@ class EditorState extends State<Editor> {
     history.recordChange(HistoricDelete(strokes: [], images: [image]));
     setState(() {
       coreInfo.pages[image.pageIndex].images.remove(image);
+    });
+    autosaveAfterDelay();
+  }
+
+  /// Reads the selected handwriting and, if confirmed, adds the text to
+  /// the page's typed text (optionally removing the handwriting).
+  Future<void> convertSelectionToText() async {
+    final select = currentTool;
+    if (select is! Select || !select.doneSelecting) return;
+    final pageIndex = select.selectResult.pageIndex;
+    final strokes = List.of(select.selectResult.strokes);
+    if (strokes.isEmpty) return;
+
+    final result = await showDialog<ConvertToTextResult>(
+      context: context,
+      builder: (context) => ConvertToTextDialog(
+        isModelDownloaded: HandwritingRecognizer.isModelDownloaded,
+        downloadModel: HandwritingRecognizer.downloadModel,
+        recognize: () => HandwritingRecognizer.recognize(strokes),
+      ),
+    );
+    if (result == null || !mounted) return;
+    if (pageIndex >= coreInfo.pages.length) return;
+    final page = coreInfo.pages[pageIndex];
+
+    if (result.text.isNotEmpty) {
+      // Quill changes are recorded in the history and autosaved
+      // by [listenToQuillChanges].
+      final document = page.quill.controller.document;
+      final separator = document.isEmpty() ? '' : '\n';
+      document.insert(document.length - 1, '$separator${result.text}');
+    }
+
+    if (result.removeHandwriting) {
+      final handwriting = strokes
+          .where(HandwritingRecognizer.isHandwriting)
+          .where(page.strokes.contains)
+          .toList();
+      if (handwriting.isNotEmpty) {
+        setState(() {
+          page.strokes.removeWhere(handwriting.contains);
+          select.unselect();
+          history.recordChange(
+            HistoricDelete(strokes: handwriting, images: const []),
+          );
+        });
+        autosaveAfterDelay();
+      }
+    }
+    setState(() {});
+  }
+
+  /// Aha! copy: the paint bucket. Fills the closed shape around [position]
+  /// on page [pageIndex] with the fill colour, under the ink; filling the
+  /// same shape again replaces the colour.
+  @visibleForTesting
+  Future<void> fillAtForTesting(Offset position, int pageIndex) =>
+      _fillAt(position, pageIndex);
+
+  Future<void> _fillAt(Offset position, int pageIndex) async {
+    if (coreInfo.readOnly || pageIndex >= coreInfo.pages.length) return;
+    final page = coreInfo.pages[pageIndex];
+    // Aha! copy: on a drawing, the edges come from the "fill uses these
+    // lines" layer (or every visible layer), and the colour goes on the
+    // layer in use.
+    final drawing = this.drawing;
+    Iterable<Stroke>? edges;
+    bool Function(Stroke)? replaceable;
+    if (drawing != null) {
+      bool onLayer(Stroke s, int id) => drawing.shownLayerOf(s.layer) == id;
+      final lines = drawing.fillLinesLayer;
+      edges = lines != null
+          ? page.strokes.where((s) => onLayer(s, lines))
+          : page.strokes.where(
+              (s) =>
+                  !(drawing
+                          .layerWithId(drawing.shownLayerOf(s.layer))
+                          ?.hidden ??
+                      false),
+            );
+      replaceable = (s) => onLayer(s, drawing.activeLayer);
+    }
+    final result = await FillTool.fill(
+      page: page,
+      pageIndex: pageIndex,
+      tap: position,
+      color: FillTool.currentFill.color,
+      edges: edges,
+      replaceable: replaceable,
+    );
+    if (drawing != null) {
+      for (final stroke in result.strokes) {
+        stroke.layer = drawing.activeLayer;
+      }
+    }
+    if (!mounted) return;
+    switch (result.outcome) {
+      case FillOutcome.filled:
+        setState(() {
+          if (result.replaced.isNotEmpty) {
+            page.strokes.removeWhere(result.replaced.toSet().contains);
+            history.recordChange(
+              HistoricDelete(strokes: result.replaced, images: const []),
+            );
+          }
+          if (page.keepDrawingOrder) {
+            // Aha! copy: on a drawing, fill goes under the ink drawn so far
+            // on its layer.
+            final under = page.strokes.indexWhere(
+              (s) =>
+                  !FillTool.isFillStroke(s) &&
+                  (drawing == null ||
+                      drawing.shownLayerOf(s.layer) == drawing.activeLayer),
+            );
+            page.strokes.insertAll(
+              under < 0 ? page.strokes.length : under,
+              result.strokes,
+            );
+          } else {
+            for (final stroke in result.strokes) {
+              page.insertStroke(stroke);
+            }
+          }
+          history.recordChange(
+            HistoricAdd(strokes: result.strokes, images: const []),
+          );
+          page.redrawStrokes();
+        });
+        autosaveAfterDelay();
+      case FillOutcome.onLine:
+        _fillMessage(t.editor.fill.onLine);
+      case FillOutcome.open:
+        _fillMessage(t.editor.fill.open);
+    }
+  }
+
+  void _fillMessage(String message) {
+    ScaffoldMessenger.of(context)
+      ..hideCurrentSnackBar()
+      ..showSnackBar(SnackBar(content: Text(message)));
+  }
+
+  /// Asks for a size, then draws a table on the current page as straight
+  /// lines and selects it so it can be dragged into place.
+  Future<void> insertTable() async {
+    if (coreInfo.readOnly) return;
+    final size = await InsertTableDialog.show(context);
+    if (size == null || !mounted) return;
+    final (rows, columns) = size;
+
+    final pageIndex = currentPageIndex;
+    createPage(pageIndex);
+    final page = coreInfo.pages[pageIndex];
+    final rect = TableLines.placement(page.size, rows);
+
+    final strokes = [
+      for (final (start, end) in TableLines.build(rect, rows, columns))
+        Stroke(
+          color: Pen.currentPen.color,
+          pressureEnabled: false,
+          options: StrokeOptions(
+            size: 3,
+            thinning: 0,
+            smoothing: 0,
+            streamline: 0,
+            simulatePressure: false,
+            start: StrokeEndOptions.start(taperEnabled: false),
+            end: StrokeEndOptions.end(taperEnabled: false),
+            isComplete: true,
+          ),
+          pageIndex: pageIndex,
+          page: page,
+          toolId: .ballpointPen,
+        )..addPoints([start, end, end]),
+    ];
+
+    setState(() {
+      page.strokes.addAll(strokes);
+      history.recordChange(HistoricAdd(strokes: strokes, images: const []));
+
+      final select = Select.currentSelect;
+      select.selectResult = SelectResult(
+        pageIndex: pageIndex,
+        strokes: strokes,
+        images: [],
+        path: Path()..addRect(rect.inflate(12)),
+        pageIndexStart: pageIndex,
+      );
+      select.doneSelecting = true;
+      currentTool = select;
     });
     autosaveAfterDelay();
   }
@@ -1027,6 +1310,15 @@ class EditorState extends State<Editor> {
               ),
         FileManager.removeUnusedAssets(filePath, numAssets: assets.length),
       ]);
+      // Aha! copy: page numbers may have shifted (pages added, moved or
+      // deleted), so rewrite the bookmarks with the note, before it
+      // counts as saved (back leaves as soon as it does).
+      if (bookmarks.isNotEmpty) await _saveBookmarks();
+      // Aha! copy: a new drawing's marker is written with its first save.
+      if (drawing != null && !_drawingSaved) {
+        await NoteDrawings.save(coreInfo.filePath, drawing!);
+        _drawingSaved = true;
+      }
       savingState.value = .saved;
       history.markLastChangeAsSaved();
     } catch (e, st) {
@@ -1442,8 +1734,49 @@ class EditorState extends State<Editor> {
     }
   }
 
+  /// Aha! copy: a locked note (or one in a locked folder) shows its
+  /// password prompt instead, until it's unlocked. It locks again if the
+  /// app is left for a while.
   @override
   Widget build(BuildContext context) {
+    return ListenableBuilder(
+      listenable: NoteLocks.changes,
+      builder: (context, child) {
+        final path = coreInfo.filePath;
+        final lockKey = path.isEmpty ? null : NoteLocks.lockForNote(path);
+        final locked = lockKey != null && NoteLocks.isNoteLocked(path);
+        // The note stays built underneath (hidden), so nothing it holds
+        // is thrown away while it's locked.
+        return Stack(
+          children: [
+            Visibility(visible: !locked, maintainState: true, child: child!),
+            if (locked)
+              Scaffold(
+                appBar: AppBar(
+                  leading: BackButton(
+                    onPressed: () {
+                      final navigator = Navigator.of(context);
+                      if (navigator.canPop()) {
+                        navigator.pop();
+                      } else {
+                        context.go(HomeRoutes.routes[0].path);
+                      }
+                    },
+                  ),
+                ),
+                body: LockPrompt(
+                  lockKey: lockKey,
+                  name: path.substring(path.lastIndexOf('/') + 1),
+                ),
+              ),
+          ],
+        );
+      },
+      child: Builder(builder: _buildNote),
+    );
+  }
+
+  Widget _buildNote(BuildContext context) {
     final colorScheme = ColorScheme.of(context);
     final platform = Theme.of(context).platform;
     final isToolbarVertical =
@@ -1506,6 +1839,43 @@ class EditorState extends State<Editor> {
         bottom: stows.editorToolbarAlignment.value != AxisDirection.up,
         child: Toolbar(
           readOnly: coreInfo.readOnly,
+          drawRow: drawing == null || coreInfo.readOnly
+              ? null
+              : DrawRow(
+                  axis: isToolbarVertical ? Axis.vertical : Axis.horizontal,
+                  grid: drawing?.paper == null
+                      ? coreInfo.backgroundPattern
+                      : null,
+                  setGrid: setDrawingGrid,
+                  flipped: flipView,
+                  toggleFlip: () => setState(() => flipView = !flipView),
+                  layersOpen: showLayers,
+                  toggleLayers: () => setState(() {
+                    showLayers = !showLayers;
+                    if (showLayers) showPages = showBookmarks = false;
+                  }),
+                  activeLayerName: drawing
+                      ?.layerWithId(drawing!.activeLayer)
+                      ?.name,
+                  picking: pickingColour,
+                  togglePicking: () =>
+                      setState(() => pickingColour = !pickingColour),
+                  hasTracing: coreInfo.pages.any(
+                    (page) =>
+                        drawing?.tracingIds.contains(
+                          page.backgroundImage?.id,
+                        ) ??
+                        false,
+                  ),
+                  tracingHidden: drawing?.tracingHidden ?? false,
+                  addTracing: addTracingImage,
+                  setTracingHidden: setTracingHidden,
+                  removeTracing: removeTracingImage,
+                ),
+          // The colour bar keeps clear of the Pages or Bookmarks panel.
+          sidePanelWidth: showPages || showBookmarks || showLayers
+              ? FloatingSidePanel.widthFor(MediaQuery.sizeOf(context).width)
+              : 0,
           setTool: (tool) {
             if (tool is Eraser && currentTool is Eraser) {
               // setTool(Eraser) is a special case to toggle the eraser on/off
@@ -1520,6 +1890,7 @@ class EditorState extends State<Editor> {
               Pencil.currentPencil = tool;
             } else if (tool is Pen) {
               Pen.currentPen = tool;
+              stows.lastPenIsBrush.value = tool.isBrush;
             }
 
             if (mounted) setState(() {});
@@ -1590,42 +1961,11 @@ class EditorState extends State<Editor> {
               autosaveAfterDelay();
             });
           },
-          setColor: (color) {
-            setState(() {
-              updateColorBar(color);
-
-              if (currentTool is Highlighter) {
-                (currentTool as Highlighter).color = color.withAlpha(
-                  Highlighter.alpha,
-                );
-              } else if (currentTool is Pen) {
-                (currentTool as Pen).color = color;
-              } else if (currentTool is Select) {
-                // Changes color of selected strokes
-                final select = currentTool as Select;
-                if (select.doneSelecting) {
-                  final strokes = select.selectResult.strokes;
-
-                  final colorChanges = <Stroke, Change<Color>>{};
-                  for (final stroke in strokes) {
-                    colorChanges[stroke] = Change(
-                      previous: stroke.color,
-                      current: color,
-                    );
-                    stroke.color = color;
-                  }
-
-                  history.recordChange(
-                    HistoricColorChange(
-                      pageIndex: strokes.first.pageIndex,
-                      colorChanges: colorChanges,
-                    ),
-                  );
-                  autosaveAfterDelay();
-                }
-              }
-            });
-          },
+          convertSelectionToText: HandwritingRecognizer.isSupported
+              ? convertSelectionToText
+              : null,
+          insertTable: insertTable,
+          setColor: setColor,
           quillFocus: quillFocus,
           textEditing: currentTool == Tool.textEditing,
           toggleTextEditing: () => setState(() {
@@ -1661,6 +2001,54 @@ class EditorState extends State<Editor> {
       ),
     );
 
+    // Aha! copy: the Bookmarks panel floats over the page, not the toolbar.
+    // Aha! copy: Pages and Bookmarks float over the page, not the toolbar,
+    // in the same spot on the right.
+    final Widget? sidePanel = showLayers && drawing != null
+        ? LayersPanel(
+            drawing: drawing!,
+            onChanged: _layersChanged,
+            onAddLayer: addLayer,
+            onMergeDown: mergeLayerDown,
+            onDelete: deleteLayer,
+            onClose: () => setState(() => showLayers = false),
+          )
+        : showPages
+        ? FloatingSidePanel(
+            key: const ValueKey('pagesPanel'),
+            title: t.editor.pages,
+            onClose: () => setState(() => showPages = false),
+            children: [Expanded(child: pageManager(context, fillWidth: true))],
+          )
+        : showBookmarks
+        ? BookmarksPanel(
+            bookmarks: bookmarks,
+            pageNumberOf: (b) => coreInfo.pages.indexOf(b.page) + 1,
+            currentPageIsBookmarked: _currentPageIsBookmarked,
+            onJump: _jumpToBookmark,
+            onBookmarkThisPage: _bookmarkThisPage,
+            onNewMeeting: _newMeeting,
+            onEdit: _editBookmark,
+            onClose: () => setState(() => showBookmarks = false),
+          )
+        : null;
+    final Widget canvasWithPanels = sidePanel == null
+        ? canvas
+        : Stack(
+            children: [
+              canvas,
+              PositionedDirectional(
+                top: 0,
+                bottom: 0,
+                end: 0,
+                width: FloatingSidePanel.widthFor(
+                  MediaQuery.sizeOf(context).width,
+                ),
+                child: sidePanel,
+              ),
+            ],
+          );
+
     final Widget body;
     if (isToolbarVertical) {
       body = Row(
@@ -1672,7 +2060,7 @@ class EditorState extends State<Editor> {
           Expanded(
             child: Column(
               children: [
-                Expanded(child: canvas),
+                Expanded(child: canvasWithPanels),
                 readonlyBanner,
               ],
             ),
@@ -1686,7 +2074,7 @@ class EditorState extends State<Editor> {
             ? VerticalDirection.up
             : VerticalDirection.down,
         children: [
-          Expanded(child: canvas),
+          Expanded(child: canvasWithPanels),
           toolbar,
           readonlyBanner,
         ],
@@ -1698,19 +2086,21 @@ class EditorState extends State<Editor> {
       builder: (context, savingState, child) {
         // don't allow user to go back until saving is done
         return PopScope(
-          canPop: savingState == .saved,
+          // Aha! copy: back is always handled here (see below).
+          canPop: false,
           onPopInvokedWithResult: (didPop, _) {
-            switch (savingState) {
-              case .waitingToSave:
-                assert(!didPop);
-                saveToFile(); // trigger save now
-                snackBarNeedsToSaveBeforeExiting();
-              case .saving:
-                assert(!didPop);
-                snackBarNeedsToSaveBeforeExiting();
-              case .saved:
-                break;
+            if (didPop) return;
+            // Aha! copy: a wrist on the edge of the screen while writing
+            // reads as Android's swipe back, which closed the note (and a
+            // second one closed the app). Back is ignored while the pen is
+            // in use; the back arrow at the top still leaves.
+            if (_canvasGestureDetectorKey.currentState?.penWasJustNear ??
+                false) {
+              _snackBarBackPausedWhileWriting();
+              return;
             }
+            // Aha! copy: one tap on back saves, waits, then leaves.
+            _saveThenLeave();
           },
           child: child!,
         );
@@ -1725,9 +2115,25 @@ class EditorState extends State<Editor> {
                     : Form(
                         key: _filenameFormKey,
                         autovalidateMode: AutovalidateMode.onUserInteraction,
+                        // Aha! copy: the tablet's own handwriting can write
+                        // straight into the name with the pen.
                         child: TextFormField(
-                          decoration: const InputDecoration(
-                            border: InputBorder.none,
+                          key: const ValueKey('noteTitle'),
+                          // Aha! copy: looks like something you can rename.
+                          decoration: InputDecoration(
+                            isDense: true,
+                            hintText: t.editor.saveState.rename,
+                            contentPadding: const .symmetric(
+                              horizontal: 10,
+                              vertical: 8,
+                            ),
+                            border: OutlineInputBorder(
+                              borderRadius: BorderRadius.circular(10),
+                            ),
+                            suffixIcon: const Icon(Icons.edit, size: 18),
+                            suffixIconConstraints: const BoxConstraints(
+                              minWidth: 36,
+                            ),
                           ),
                           controller: filenameTextEditingController,
                           onChanged: renameFile,
@@ -1737,9 +2143,10 @@ class EditorState extends State<Editor> {
                       ),
                 leading: SaveIndicator(
                   savingState: savingState,
-                  triggerSave: saveToFile,
+                  onBack: _saveThenLeave,
                 ),
                 actions: [
+                  _SaveStateChip(savingState: savingState),
                   IconButton(
                     icon: const AdaptiveIcon(
                       icon: Icons.insert_page_break,
@@ -1763,16 +2170,24 @@ class EditorState extends State<Editor> {
                       cupertinoIcon: CupertinoIcons.rectangle_grid_2x2,
                     ),
                     tooltip: t.editor.pages,
-                    onPressed: () {
-                      showDialog(
-                        context: context,
-                        builder: (context) => AdaptiveAlertDialog(
-                          title: Text(t.editor.pages),
-                          content: pageManager(context),
-                          actions: const [],
-                        ),
-                      );
-                    },
+                    // Aha! copy: opens on the right, where Bookmarks opens.
+                    onPressed: () => setState(() {
+                      showPages = !showPages;
+                      if (showPages) showBookmarks = showLayers = false;
+                    }),
+                  ),
+                  // Aha! copy: Bookmarks, beside Pages (a different view).
+                  IconButton(
+                    icon: Icon(
+                      showBookmarks
+                          ? Icons.bookmarks
+                          : Icons.bookmarks_outlined,
+                    ),
+                    tooltip: t.editor.bookmarks.title,
+                    onPressed: () => setState(() {
+                      showBookmarks = !showBookmarks;
+                      if (showBookmarks) showPages = showLayers = false;
+                    }),
                   ),
                   IconButton(
                     icon: const AdaptiveIcon(
@@ -1808,6 +2223,565 @@ class EditorState extends State<Editor> {
     );
   }
 
+  /// Aha! copy: this note's bookmarks, and whether the panel is open.
+  List<NoteBookmark> bookmarks = [];
+  var showBookmarks = false;
+
+  /// Aha! copy: the Pages panel opens in the same spot as Bookmarks.
+  var showPages = false;
+
+  Future<void> _saveBookmarks() async {
+    if (coreInfo.readOnly) return;
+    await NoteBookmarks.save(coreInfo.filePath, bookmarks, coreInfo.pages);
+  }
+
+  bool get _currentPageIsBookmarked {
+    final index = currentPageIndex;
+    return bookmarks.any((b) => coreInfo.pages.indexOf(b.page) == index);
+  }
+
+  void _jumpToBookmark(NoteBookmark bookmark) {
+    final index = coreInfo.pages.indexOf(bookmark.page);
+    if (index < 0) return;
+    CanvasGestureDetector.scrollToPage(
+      pageIndex: index,
+      pages: coreInfo.pages,
+      screenWidth: MediaQuery.sizeOf(context).width,
+      transformationController: _transformationController,
+    );
+  }
+
+  /// Names and dates a new bookmark on [pageIndex], then adds it.
+  Future<bool> _addBookmark(int pageIndex, {required String name}) async {
+    // A read-only note can't be changed, so its bookmarks can't be saved.
+    if (coreInfo.readOnly) return false;
+    final result = await showDialog<BookmarkDialogResult>(
+      context: context,
+      builder: (context) => BookmarkDialog(
+        initialName: name,
+        initialDate: DateTime.now(),
+        isNew: true,
+      ),
+    );
+    if (result is! BookmarkSaved || !mounted) return false;
+    if (pageIndex >= coreInfo.pages.length) return false;
+    final page = coreInfo.pages[pageIndex];
+    if (result.writeHeading) {
+      // Quill changes are recorded in the history and autosaved.
+      page.quill.controller.document.insert(
+        0,
+        '${result.name} · ${formatBookmarkDate(result.date)}\n',
+      );
+    }
+    setState(() {
+      bookmarks.add(
+        NoteBookmark(name: result.name, date: result.date, page: page),
+      );
+    });
+    await _saveBookmarks();
+    return true;
+  }
+
+  Future<void> _bookmarkThisPage() =>
+      _addBookmark(currentPageIndex, name: t.editor.bookmarks.defaultName);
+
+  /// A fresh page at the end of the note, bookmarked with today's date.
+  Future<void> _newMeeting() async {
+    if (coreInfo.readOnly) return;
+    // Saber keeps a blank page at the end: use it if it's blank, else add one.
+    var pageIndex = coreInfo.pages.length - 1;
+    if (coreInfo.pages[pageIndex].isNotEmpty) {
+      insertPageAfter(pageIndex);
+      pageIndex++;
+    }
+    createPage(pageIndex); // keep a blank page after it
+    final added = await _addBookmark(
+      pageIndex,
+      name: t.editor.bookmarks.newMeetingName,
+    );
+    if (added && mounted) _jumpToBookmark(bookmarks.last);
+  }
+
+  Future<void> _editBookmark(NoteBookmark bookmark) async {
+    if (coreInfo.readOnly) return;
+    final result = await showDialog<BookmarkDialogResult>(
+      context: context,
+      builder: (context) => BookmarkDialog(
+        initialName: bookmark.name,
+        initialDate: bookmark.date,
+        isNew: false,
+      ),
+    );
+    if (result == null || !mounted) return;
+    setState(() {
+      switch (result) {
+        case BookmarkSaved():
+          bookmark
+            ..name = result.name
+            ..date = result.date;
+        case BookmarkRemoved():
+          bookmarks.remove(bookmark);
+      }
+    });
+    await _saveBookmarks();
+  }
+
+  /// Aha! copy: a new note starts with the pen chosen in Settings › New
+  /// pages (or the last-used pen when none is chosen).
+  void _applyNewNoteStartingTool() {
+    final name = stows.newNoteStartingTool.value;
+    final toolId = ToolId.values.where((t) => t.name == name).firstOrNull;
+    final Tool? tool = switch (toolId) {
+      ToolId.fountainPen => Pen.currentPen = Pen.fountainPen(),
+      ToolId.ballpointPen => Pen.currentPen = Pen.ballpointPen(),
+      ToolId.pencil => Pencil.currentPencil,
+      ToolId.highlighter => Highlighter.currentHighlighter,
+      _ => null,
+    };
+    if (tool != null) currentTool = tool;
+  }
+
+  /// Sets the colour of the current tool (or the selected strokes).
+  void setColor(Color color) {
+    setState(() {
+      updateColorBar(color);
+
+      if (currentTool is Highlighter) {
+        (currentTool as Highlighter).color = color.withAlpha(Highlighter.alpha);
+      } else if (currentTool is FillTool) {
+        (currentTool as FillTool).color = color.withAlpha(255);
+      } else if (currentTool is Pen) {
+        (currentTool as Pen).color = color;
+      } else if (currentTool is Select) {
+        // Changes color of selected strokes
+        final select = currentTool as Select;
+        if (select.doneSelecting) {
+          final strokes = select.selectResult.strokes;
+
+          final colorChanges = <Stroke, Change<Color>>{};
+          for (final stroke in strokes) {
+            colorChanges[stroke] = Change(
+              previous: stroke.color,
+              current: color,
+            );
+            stroke.color = color;
+          }
+
+          history.recordChange(
+            HistoricColorChange(
+              pageIndex: strokes.first.pageIndex,
+              colorChanges: colorChanges,
+            ),
+          );
+          autosaveAfterDelay();
+        }
+      }
+    });
+  }
+
+  var _leaving = false;
+
+  AppLifecycleListener? _lifecycle;
+
+  void _saveNowIfNeeded() {
+    if (savingState.value == .waitingToSave) saveToFile();
+  }
+
+  static bool get _isMobile => Platform.isAndroid || Platform.isIOS;
+
+  void _applyImmersive() {
+    if (!_isMobile || !stows.editorImmersive.value) return;
+    SystemChrome.setEnabledSystemUIMode(SystemUiMode.immersiveSticky);
+  }
+
+  /// Aha! copy: the note's drawing settings, or null for an ordinary note.
+  DrawingSettings? drawing;
+  var _drawingSaved = true;
+
+  /// Aha! copy: whether the view is mirrored left to right (a drawing aid;
+  /// the drawing itself isn't changed).
+  var flipView = false;
+
+  /// New pages match a drawing's shape; notes get Saber's usual page.
+  Size get _newPageSize => drawing?.shape.pageSize ?? EditorPage.defaultSize;
+
+  /// Aha! copy: drawings keep strokes in drawing order and allow the
+  /// drawing-only pen options; their pages draw by layer.
+  void _applyDrawingMode() {
+    final isDrawing = drawing != null;
+    Pen.drawingMode = isDrawing;
+    for (final page in coreInfo.pages) {
+      page.keepDrawingOrder = isDrawing;
+      page.drawing = drawing;
+      page.redrawStrokes();
+    }
+  }
+
+  /// Aha! copy: the strokes the eraser and lasso may touch: on a drawing,
+  /// only those on the layer in use (and only while it's showing).
+  List<Stroke> _touchableStrokes(EditorPage page) {
+    final drawing = this.drawing;
+    if (drawing == null) return page.strokes;
+    final active = drawing.layerWithId(drawing.activeLayer);
+    if (active == null || active.hidden) return const [];
+    return [
+      for (final stroke in page.strokes)
+        if (drawing.shownLayerOf(stroke.layer) == active.id) stroke,
+    ];
+  }
+
+  /// Aha! copy: whether the layers panel is open (drawings only).
+  var showLayers = false;
+
+  /// Aha! copy: after a change in the layers panel: redraw and save.
+  Future<void> _layersChanged() async {
+    if (drawing == null) return;
+    setState(() {});
+    for (final page in coreInfo.pages) {
+      page.redrawStrokes();
+    }
+    if (coreInfo.readOnly) return;
+    if (FileManager.doesFileExist(coreInfo.filePath + Editor.extension)) {
+      await NoteDrawings.save(coreInfo.filePath, drawing!);
+    } else {
+      _drawingSaved = false;
+    }
+  }
+
+  /// Aha! copy: a new layer on top, which becomes the layer in use.
+  void addLayer() {
+    final drawing = this.drawing;
+    if (drawing == null || drawing.layers.length >= DrawingSettings.maxLayers) {
+      return;
+    }
+    final id = drawing.layers.fold(0, (m, l) => l.id > m ? l.id : m) + 1;
+    drawing.layers.add(
+      DrawingLayer(
+        id: id,
+        name: t.editor.layers.newName(n: drawing.layers.length + 1),
+      ),
+    );
+    drawing.activeLayer = id;
+    _layersChanged();
+  }
+
+  /// Aha! copy: moves [layer]'s strokes onto the layer below and removes it.
+  void mergeLayerDown(DrawingLayer layer) {
+    final drawing = this.drawing;
+    if (drawing == null) return;
+    final index = drawing.layers.indexOf(layer);
+    if (index < 1) return;
+    final below = drawing.layers[index - 1];
+    final before = List.of(drawing.layers);
+    final moved = <Stroke, Change<int>>{};
+    for (final page in coreInfo.pages) {
+      for (final stroke in page.strokes) {
+        if (drawing.shownLayerOf(stroke.layer) == layer.id) {
+          moved[stroke] = Change(previous: stroke.layer, current: below.id);
+          stroke.layer = below.id;
+        }
+      }
+    }
+    drawing.layers.removeAt(index);
+    if (drawing.activeLayer == layer.id) drawing.activeLayer = below.id;
+    if (drawing.fillLinesLayer == layer.id) drawing.fillLinesLayer = below.id;
+    history.recordChange(
+      HistoricLayersChange(
+        layers: Change(previous: before, current: List.of(drawing.layers)),
+        strokeLayers: moved,
+      ),
+    );
+    autosaveAfterDelay();
+    _layersChanged();
+  }
+
+  /// Aha! copy: removes [layer] and everything drawn on it (undo brings the
+  /// strokes back, onto the bottom layer).
+  void deleteLayer(DrawingLayer layer) {
+    final drawing = this.drawing;
+    if (drawing == null || drawing.layers.length < 2) return;
+    final removed = <Stroke>[];
+    for (final page in coreInfo.pages) {
+      final onLayer = [
+        for (final stroke in page.strokes)
+          if (drawing.shownLayerOf(stroke.layer) == layer.id) stroke,
+      ];
+      page.strokes.removeWhere(onLayer.toSet().contains);
+      removed.addAll(onLayer);
+    }
+    final before = List.of(drawing.layers);
+    drawing.layers.remove(layer);
+    if (drawing.activeLayer == layer.id) {
+      drawing.activeLayer = drawing.layers.last.id;
+    }
+    if (drawing.fillLinesLayer == layer.id) drawing.fillLinesLayer = null;
+    // Undo puts the layer back first, then its strokes.
+    history.recordChange(HistoricDelete(strokes: removed, images: const []));
+    history.recordChange(
+      HistoricLayersChange(
+        layers: Change(previous: before, current: List.of(drawing.layers)),
+        strokeLayers: const {},
+      ),
+    );
+    autosaveAfterDelay();
+    _layersChanged();
+  }
+
+  /// Aha! copy: the drawing's textured paper, put behind each new page.
+  Uint8List? _paperBytes;
+
+  EditorPage _newPage(int pageIndex) {
+    final page = EditorPage(size: _newPageSize)
+      ..keepDrawingOrder = drawing != null
+      ..drawing = drawing;
+    page.backgroundImage = _paperImage(pageIndex, page.size);
+    return page;
+  }
+
+  /// The drawing's textured paper as a page picture, or null.
+  EditorImage? _paperImage(int pageIndex, Size pageSize) {
+    final bytes = _paperBytes;
+    if (bytes == null || drawing?.paper == null) return null;
+    return PngEditorImage(
+      id: coreInfo.nextImageId++,
+      extension: '.jpg',
+      imageProvider: MemoryImage(bytes),
+      pageIndex: pageIndex,
+      pageSize: pageSize,
+      invertible: false,
+      backgroundFit: .cover,
+      onMoveImage: onMoveImage,
+      onDeleteImage: onDeleteImage,
+      onMiscChange: autosaveAfterDelay,
+      assetCache: coreInfo.assetCache,
+    );
+  }
+
+  /// Aha! copy: shows a drawing's tracing images faded (or hidden).
+  void _applyTracingOpacity() {
+    final drawing = this.drawing;
+    for (final page in coreInfo.pages) {
+      final image = page.backgroundImage;
+      if (image == null) continue;
+      image.displayOpacity =
+          drawing != null && drawing.tracingIds.contains(image.id)
+          ? (drawing.tracingHidden ? 0 : DrawingSettings.tracingOpacity)
+          : 1;
+    }
+  }
+
+  bool get _pageHasTracing {
+    final id = coreInfo.pages[currentPageIndex].backgroundImage?.id;
+    return id != null && (drawing?.tracingIds.contains(id) ?? false);
+  }
+
+  /// Aha! copy: puts a photo behind the current page of a drawing, faded,
+  /// to trace over. It can't be moved by the pen, and can be hidden.
+  Future<void> addTracingImage() async {
+    if (coreInfo.readOnly || drawing == null) return;
+    final photos = await _pickPhotosWithFilePicker();
+    final photo = photos.where((p) {
+      final ext = p.extension.toLowerCase();
+      return ext != '.pdf' && ext != '.svg';
+    }).firstOrNull;
+    if (photo == null || !mounted) return;
+    addTracingImageBytes(photo.bytes, photo.extension);
+  }
+
+  /// Puts the picture [bytes] behind the current page as a tracing image.
+  void addTracingImageBytes(Uint8List bytes, String extension) {
+    if (coreInfo.readOnly || drawing == null) return;
+    final pageIndex = currentPageIndex;
+    final page = coreInfo.pages[pageIndex];
+    final image = PngEditorImage(
+      id: coreInfo.nextImageId++,
+      extension: extension,
+      imageProvider: MemoryImage(bytes),
+      pageIndex: pageIndex,
+      pageSize: page.size,
+      invertible: false,
+      backgroundFit: .contain,
+      onMoveImage: onMoveImage,
+      onDeleteImage: onDeleteImage,
+      onMiscChange: autosaveAfterDelay,
+      onLoad: () => setState(() {}),
+      assetCache: coreInfo.assetCache,
+    );
+    setState(() {
+      final previous = page.backgroundImage;
+      page.backgroundImage = image;
+      drawing!.tracingIds.add(image.id);
+      drawing!.tracingHidden = false;
+      _drawingSaved = false;
+      _applyTracingOpacity();
+      history.recordChange(
+        HistoricBackgroundImageChange(
+          pageIndex: pageIndex,
+          change: Change(previous: previous, current: image),
+        ),
+      );
+      autosaveAfterDelay();
+    });
+  }
+
+  /// Aha! copy: hides or shows every tracing image in the drawing.
+  Future<void> setTracingHidden(bool hidden) async {
+    if (drawing == null) return;
+    setState(() {
+      drawing!.tracingHidden = hidden;
+      _applyTracingOpacity();
+    });
+    if (FileManager.doesFileExist(coreInfo.filePath + Editor.extension)) {
+      await NoteDrawings.save(coreInfo.filePath, drawing!);
+    } else {
+      _drawingSaved = false;
+    }
+  }
+
+  /// Aha! copy: removes the current page's tracing image (bringing back
+  /// the drawing's textured paper, if it has one). Undo puts it back.
+  void removeTracingImage() {
+    if (coreInfo.readOnly || !_pageHasTracing) return;
+    final pageIndex = currentPageIndex;
+    final page = coreInfo.pages[pageIndex];
+    final previous = page.backgroundImage;
+    setState(() {
+      page.backgroundImage = _paperImage(pageIndex, page.size);
+      history.recordChange(
+        HistoricBackgroundImageChange(
+          pageIndex: pageIndex,
+          change: Change(previous: previous, current: page.backgroundImage),
+        ),
+      );
+      autosaveAfterDelay();
+    });
+  }
+
+  /// Aha! copy: whether the next touch on the page picks a colour.
+  var pickingColour = false;
+
+  /// Aha! copy: takes the colour at [globalPosition] on the page (the
+  /// topmost stroke there, or the paper) for the current pen.
+  void pickColourAt(Offset globalPosition) {
+    final pageIndex = onWhichPageIsFocalPoint(globalPosition);
+    if (pageIndex == null) return;
+    final page = coreInfo.pages[pageIndex];
+    final position = page.renderBox!.globalToLocal(globalPosition);
+    Color? picked;
+    final drawing = this.drawing;
+    for (final stroke in page.strokes.reversed) {
+      if (drawing != null &&
+          (drawing.layerWithId(drawing.shownLayerOf(stroke.layer))?.hidden ??
+              false)) {
+        continue; // hidden layers can't be picked from
+      }
+      if (stroke.highQualityPath.contains(position)) {
+        picked = stroke.color.withAlpha(255);
+        break;
+      }
+    }
+    picked ??= coreInfo.backgroundColor ?? InnerCanvas.defaultBackgroundColor;
+    pickingColour = false;
+    setColor(picked);
+  }
+
+  /// Aha! copy: shows [pattern] as the drawing's guide grid (undoable).
+  void setDrawingGrid(CanvasBackgroundPattern pattern) => setState(() {
+    if (coreInfo.readOnly || drawing == null) return;
+    final previous = coreInfo.backgroundPattern;
+    if (previous == pattern) return;
+    coreInfo.backgroundPattern = pattern;
+    drawing!.grid = pattern;
+    _drawingSaved = false;
+    history.recordChange(
+      HistoricBackgroundPatternChange(
+        pageIndex: currentPageIndex,
+        change: Change(previous: previous, current: pattern),
+      ),
+    );
+    autosaveAfterDelay();
+  });
+
+  /// Aha! copy: turns this note into a drawing, or back into a note. Only
+  /// the companion file changes; the pages and strokes stay as they are.
+  Future<void> setIsDrawing(bool isDrawing) async {
+    if (coreInfo.readOnly || (drawing != null) == isDrawing) return;
+    if (isDrawing) {
+      final size = coreInfo.pages.firstOrNull?.size ?? EditorPage.defaultSize;
+      drawing = DrawingSettings(
+        shape:
+            DrawingShape.values
+                .where((shape) => shape.pageSize == size)
+                .firstOrNull ??
+            .portrait,
+        grid: coreInfo.backgroundPattern,
+      );
+      if (FileManager.doesFileExist(coreInfo.filePath + Editor.extension)) {
+        await NoteDrawings.save(coreInfo.filePath, drawing!);
+      } else {
+        _drawingSaved = false;
+      }
+    } else {
+      drawing = null;
+      flipView = false;
+      await NoteDrawings.remove(coreInfo.filePath);
+    }
+    _applyDrawingMode();
+    if (mounted) setState(() {});
+  }
+
+  void _snackBarBackPausedWhileWriting() {
+    ScaffoldMessenger.of(context)
+      ..hideCurrentSnackBar()
+      ..showSnackBar(
+        SnackBar(
+          content: Text(t.editor.penGuard.backPaused),
+          duration: const Duration(seconds: 2),
+        ),
+      );
+  }
+
+  /// Saves now (or waits for the save in progress), then leaves the editor.
+  /// If the save fails, stays and says so.
+  Future<void> _saveThenLeave() async {
+    if (_leaving) return;
+    _leaving = true;
+    try {
+      if (savingState.value == .waitingToSave) await saveToFile();
+      await _untilNotSaving();
+      if (!mounted) return;
+      if (savingState.value != .saved) {
+        return snackBarNeedsToSaveBeforeExiting();
+      }
+      final navigator = Navigator.of(context);
+      if (navigator.canPop()) {
+        // pop, not maybePop: the save is done, so leave even if PopScope
+        // hasn't caught up with the new saving state yet.
+        navigator.pop();
+      } else {
+        // Nothing to go back to (opened directly): go to Recent notes.
+        context.go(HomeRoutes.routes[0].path);
+      }
+    } finally {
+      _leaving = false;
+    }
+  }
+
+  /// Completes once no save is in progress (rather than checking every few
+  /// milliseconds).
+  Future<void> _untilNotSaving() {
+    if (savingState.value != .saving) return Future.value();
+    final done = Completer<void>();
+    void check() {
+      if (savingState.value == .saving || done.isCompleted) return;
+      savingState.removeListener(check);
+      done.complete();
+    }
+
+    savingState.addListener(check);
+    return done.future;
+  }
+
   void snackBarNeedsToSaveBeforeExiting() {
     if (!mounted) return;
     ScaffoldMessenger.of(
@@ -1824,10 +2798,16 @@ class EditorState extends State<Editor> {
       invert: invert,
       coreInfo: coreInfo,
       currentPageIndex: currentPageIndex,
+      isDrawing: drawing != null,
+      setIsDrawing: coreInfo.readOnly ? null : setIsDrawing,
       setBackgroundPattern: (pattern) => setState(() {
         if (coreInfo.readOnly) return;
         final previous = coreInfo.backgroundPattern;
         coreInfo.backgroundPattern = pattern;
+        if (drawing != null) {
+          drawing!.grid = pattern;
+          _drawingSaved = false;
+        }
         stows.lastBackgroundPattern.value = pattern;
         history.recordChange(
           HistoricBackgroundPatternChange(
@@ -1900,6 +2880,19 @@ class EditorState extends State<Editor> {
     final currentStroke = Pen.currentStroke?.pageIndex == pageIndex
         ? Pen.currentStroke
         : null;
+    // Aha! copy: Flip view mirrors each page (pointer positions are
+    // mirrored back, so drawing still lands under the pen).
+    return Transform(
+      key: ValueKey('pageFlip$pageIndex'),
+      transform: flipView
+          ? Matrix4.diagonal3Values(-1, 1, 1)
+          : Matrix4.identity(),
+      alignment: Alignment.center,
+      child: _pageCanvas(page, pageIndex, currentStroke),
+    );
+  }
+
+  Widget _pageCanvas(EditorPage page, int pageIndex, Stroke? currentStroke) {
     return Canvas(
       path: coreInfo.filePath,
       page: page,
@@ -1936,8 +2929,9 @@ class EditorState extends State<Editor> {
     );
   }
 
-  Widget pageManager(BuildContext context) {
+  Widget pageManager(BuildContext context, {bool fillWidth = false}) {
     return EditorPageManager(
+      fillWidth: fillWidth,
       coreInfo: coreInfo,
       currentPageIndex: currentPageIndex,
       redrawAndSave: () => setState(() {
@@ -1989,7 +2983,7 @@ class EditorState extends State<Editor> {
 
   void insertPageAfter(int pageIndex) => setState(() {
     if (coreInfo.readOnly) return;
-    final page = EditorPage();
+    final page = _newPage(pageIndex + 1);
     coreInfo.pages.insert(pageIndex + 1, page);
     listenToQuillChanges(page.quill, pageIndex + 1);
     history.recordChange(
@@ -2101,7 +3095,14 @@ class EditorState extends State<Editor> {
 
   @override
   void dispose() {
+    _lifecycle?.dispose();
+    if (_isMobile &&
+        stows.editorImmersive.value &&
+        !DynamicMaterialApp.isFullscreen) {
+      SystemChrome.setEnabledSystemUIMode(SystemUiMode.edgeToEdge);
+    }
     unawaited(_cleanUpAsync());
+    Pen.drawingMode = false; // Aha! copy: back to note pens
 
     DynamicMaterialApp.removeFullscreenListener(_setState);
 
@@ -2117,6 +3118,7 @@ class EditorState extends State<Editor> {
     stows.lastHighlighterOptions.notifyListeners();
     stows.lastPencilOptions.notifyListeners();
     stows.lastShapePenOptions.notifyListeners();
+    stows.lastBrushOptions.notifyListeners();
 
     super.dispose();
   }
@@ -2132,5 +3134,70 @@ class EditorState extends State<Editor> {
     } finally {
       coreInfo.dispose();
     }
+  }
+}
+
+/// Aha! copy: "Saved", "Saving…" or "Not saved yet", beside the note's name.
+class _SaveStateChip extends StatelessWidget {
+  const new({required this.savingState});
+
+  final ValueNotifier<SavingState> savingState;
+
+  @override
+  Widget build(BuildContext context) {
+    final colorScheme = ColorScheme.of(context);
+    return ValueListenableBuilder(
+      valueListenable: savingState,
+      builder: (context, state, _) {
+        final (label, icon, fg, bg) = switch (state) {
+          .saved => (
+            t.editor.saveState.saved,
+            Icons.check,
+            colorScheme.onTertiaryContainer,
+            colorScheme.tertiaryContainer,
+          ),
+          .saving => (
+            t.editor.saveState.saving,
+            Icons.sync,
+            colorScheme.onSurfaceVariant,
+            colorScheme.surfaceContainerHighest,
+          ),
+          .waitingToSave => (
+            t.editor.saveState.notSaved,
+            Icons.edit_note,
+            colorScheme.onSurfaceVariant,
+            colorScheme.surfaceContainerHighest,
+          ),
+        };
+        return Padding(
+          padding: const .symmetric(horizontal: 4),
+          child: DecoratedBox(
+            key: const ValueKey('saveStateChip'),
+            decoration: BoxDecoration(
+              color: bg,
+              borderRadius: BorderRadius.circular(999),
+            ),
+            child: Padding(
+              padding: const .symmetric(horizontal: 10, vertical: 4),
+              child: Row(
+                mainAxisSize: .min,
+                spacing: 4,
+                children: [
+                  Icon(icon, size: 14, color: fg),
+                  Text(
+                    label,
+                    style: TextStyle(
+                      color: fg,
+                      fontSize: 12,
+                      fontWeight: FontWeight.w600,
+                    ),
+                  ),
+                ],
+              ),
+            ),
+          ),
+        );
+      },
+    );
   }
 }

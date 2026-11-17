@@ -49,6 +49,10 @@ class _MasonryFilesState extends State<MasonryFiles> {
             toggleSelection: toggleSelection,
             selected: widget.selectedFiles.value.contains(file),
             isAnythingSelected: isAnythingSelected,
+            // Aha! copy: drag the note (or all selected notes) to a folder.
+            dragPaths: () => widget.selectedFiles.value.contains(file)
+                ? List.of(widget.selectedFiles.value)
+                : [file],
           ),
         );
       },

@@ -9,7 +9,12 @@ class ToolbarIconButton extends StatelessWidget {
     required this.onPressed,
     required this.padding,
     required this.child,
+    this.accent,
   });
+
+  /// Aha! copy: the tool's own colour. The icon shows in it, and the button
+  /// fills with it while the tool is in use. Null for the plain buttons.
+  final Color? accent;
 
   final String? tooltip;
   final bool selected;
@@ -27,16 +32,16 @@ class ToolbarIconButton extends StatelessWidget {
           !states.contains(WidgetState.selected)) {
         return Colors.transparent;
       }
-      return colorScheme.primary;
+      return accent ?? colorScheme.primary;
     });
     final foregroundColor = WidgetStateProperty.resolveWith((states) {
       if (states.contains(WidgetState.disabled)) {
         return colorScheme.onSurface.withValues(alpha: 0.4);
       }
       if (states.contains(WidgetState.selected)) {
-        return colorScheme.onPrimary;
+        return accent == null ? colorScheme.onPrimary : Colors.white;
       }
-      return colorScheme.primary;
+      return accent ?? colorScheme.primary;
     });
     final buttonStyle = ButtonStyle(
       backgroundColor: backgroundColor,

@@ -13,6 +13,7 @@ import 'package:saber/data/editor/page.dart';
 import 'package:saber/data/extensions/change_notifier_extensions.dart';
 import 'package:saber/data/extensions/matrix4_extensions.dart';
 import 'package:saber/data/prefs.dart';
+import 'package:saber/i18n/strings.g.dart';
 import 'package:saber/pages/editor/editor.dart';
 import 'package:vector_math/vector_math_64.dart';
 
@@ -418,13 +419,63 @@ class CanvasGestureDetectorState extends State<CanvasGestureDetector> {
         transformation;
   }
 
+  /// Aha! copy: a touch wider than this (logical pixels, radius) is a palm,
+  /// not a fingertip (about 5 to 10).
+  static const palmRadius = 22.0;
+
+  /// Aha! copy (pen guard): when the pen was last seen, hovering or touching.
+  DateTime? _lastStylusSeen;
+
+  /// Shows "Pen near · touch paused" briefly when a touch is ignored.
+  final _guardHintVisible = ValueNotifier(false);
+  Timer? _guardHintTimer;
+
+  /// Whether touch on the page should be ignored right now: the pen is near
+  /// or was lifted less than [stows.penGuardHoldMs] ago.
+  bool _shouldIgnoreTouch() {
+    final ignore = _penIsNear();
+    if (ignore) _showGuardHint();
+    return ignore;
+  }
+
+  /// Aha! copy: whether the pen was near the page in the last moment. The
+  /// editor ignores Android's back gesture then: a wrist resting on the
+  /// edge of the screen while writing reads as a swipe back.
+  bool get penWasJustNear {
+    final seen = _lastStylusSeen;
+    return seen != null &&
+        DateTime.now().difference(seen) < const Duration(milliseconds: 1500);
+  }
+
+  bool _penIsNear() {
+    if (!stows.penGuard.value) return false;
+    final seen = _lastStylusSeen;
+    if (seen == null) return false;
+    return DateTime.now().difference(seen).inMilliseconds <
+        stows.penGuardHoldMs.value;
+  }
+
+  void _showGuardHint() {
+    if (_guardHintVisible.value) return;
+    _guardHintVisible.value = true;
+    _guardHintTimer?.cancel();
+    _guardHintTimer = Timer(const Duration(milliseconds: 1200), () {
+      _guardHintVisible.value = false;
+    });
+  }
+
   void _listenerPointerEvent(PointerEvent event) {
     final isStylus =
         event.kind == PointerDeviceKind.stylus ||
         event.kind == PointerDeviceKind.invertedStylus;
+    if (isStylus) _lastStylusSeen = DateTime.now();
     if (isStylus && event is PointerDownEvent) {
       _detectStylusButton(event);
     }
+    // Aha! copy: a wrist moving while the pen writes mustn't take over the
+    // pen's type and pressure (a stroke then read as a finger, or lost its
+    // pressure).
+    if (!isStylus && _penIsNear()) return;
 
     final double? pressure;
     if (isStylus) {
@@ -455,6 +506,7 @@ class CanvasGestureDetectorState extends State<CanvasGestureDetector> {
 
   void _listenerPointerHoverEvent(PointerEvent event) {
     if (event.kind != .stylus && event.kind != .invertedStylus) return;
+    _lastStylusSeen = DateTime.now();
 
     // Apparently flutter synthesizes a hover event on pointer down,
     // so these are used to detect when hovering ends
@@ -477,6 +529,12 @@ class CanvasGestureDetectorState extends State<CanvasGestureDetector> {
   }
 
   void _listenerPointerUpEvent(PointerEvent event) {
+    if (event.kind == PointerDeviceKind.stylus ||
+        event.kind == PointerDeviceKind.invertedStylus) {
+      _lastStylusSeen = DateTime.now();
+    } else if (_penIsNear()) {
+      return; // as above: a wrist lifting doesn't change the pen's data
+    }
     widget.updatePointerData(event.kind, null);
     if (stylusButtonWasPressed) {
       stylusButtonWasPressed = false;
@@ -503,7 +561,18 @@ class CanvasGestureDetectorState extends State<CanvasGestureDetector> {
                 return InteractiveCanvasViewer.builder(
                   minScale: zoomLockedValue ?? CanvasGestureDetector.kMinScale,
                   maxScale: zoomLockedValue ?? CanvasGestureDetector.kMaxScale,
-                  panEnabled: !singleFingerPanLock,
+                  // Aha! copy: the "single-finger pan" lock used to stop all
+                  // panning, so two-finger scrolling froze until a pinch
+                  // turned it into a zoom. Now it only stops one-finger
+                  // panning, the same as two-finger scrolling does.
+                  panEnabled: true,
+                  twoFingerPanOnly:
+                      stows.twoFingerScrollOnly.value || singleFingerPanLock,
+                  shouldIgnoreTouch: _shouldIgnoreTouch,
+                  // Aha! copy: palms at the bottom, or palm-sized, are
+                  // ignored altogether.
+                  palmZone: stows.palmZone.value,
+                  palmRadius: stows.palmSizeGuard.value ? palmRadius : null,
                   panAxis: axisAlignedPanLock ? PanAxis.aligned : PanAxis.free,
 
                   // Smoother scrolling fling gesture than the default
@@ -538,6 +607,24 @@ class CanvasGestureDetectorState extends State<CanvasGestureDetector> {
             ),
           ),
         ),
+        Positioned(
+          top: 12,
+          left: 0,
+          right: 0,
+          child: IgnorePointer(
+            child: Center(
+              child: ValueListenableBuilder(
+                valueListenable: _guardHintVisible,
+                builder: (context, visible, child) => AnimatedOpacity(
+                  opacity: visible ? 1 : 0,
+                  duration: const Duration(milliseconds: 200),
+                  child: child,
+                ),
+                child: _PenGuardHint(),
+              ),
+            ),
+          ),
+        ),
         Positioned.fill(
           child: CanvasHud(
             transformationController: widget._transformationController,
@@ -550,6 +637,10 @@ class CanvasGestureDetectorState extends State<CanvasGestureDetector> {
             }),
             resetZoom: zoomLockedValue != null ? null : resetZoom,
             singleFingerPanLock: singleFingerPanLock,
+            // Aha! copy: with two-finger scrolling on, the lock changes
+            // nothing, so its button is hidden (it was easy to tap by
+            // accident while writing near the top of the page).
+            showSingleFingerPanLock: !stows.twoFingerScrollOnly.value,
             setSingleFingerPanLock: (bool singleFingerPanLock) => setState(() {
               this.singleFingerPanLock = singleFingerPanLock;
               stows.lastSingleFingerPanLock.value = singleFingerPanLock;
@@ -574,6 +665,8 @@ class CanvasGestureDetectorState extends State<CanvasGestureDetector> {
     widget._transformationController.removeListener(onTransformChanged);
     widget._transformationController.dispose();
     _removeKeybindings();
+    _guardHintTimer?.cancel();
+    _guardHintVisible.dispose();
     super.dispose();
   }
 
@@ -702,4 +795,36 @@ double _inverseLerp(num value, {required num min, required num max}) {
     'Value ($value) must be between $min and $max',
   );
   return (value - min) / (max - min);
+}
+
+/// The small pill shown while the pen guard is ignoring touch.
+class _PenGuardHint extends StatelessWidget {
+  @override
+  Widget build(BuildContext context) {
+    final colorScheme = ColorScheme.of(context);
+    return DecoratedBox(
+      decoration: BoxDecoration(
+        color: colorScheme.inverseSurface,
+        borderRadius: BorderRadius.circular(999),
+      ),
+      child: Padding(
+        padding: const .symmetric(horizontal: 12, vertical: 6),
+        child: Row(
+          mainAxisSize: .min,
+          spacing: 6,
+          children: [
+            Icon(Icons.edit, size: 14, color: colorScheme.onInverseSurface),
+            Text(
+              t.editor.penGuard.hint,
+              style: TextStyle(
+                color: colorScheme.onInverseSurface,
+                fontSize: 12,
+                fontWeight: FontWeight.w600,
+              ),
+            ),
+          ],
+        ),
+      ),
+    );
+  }
 }

@@ -59,11 +59,24 @@ abstract class HomeRoutes {
     ),
     HomeRoute._(
       _homeFunction({'subpage': HomePage.whiteboardSubpage}),
+      // Aha! copy: this slot was the Whiteboard (a scratch page that never
+      // became a named note). It now starts a New note; see ResponsiveNavbar.
       destination: NavigationDestination(
-        label: t.home.tabs.whiteboard,
+        label: t.home.create.newNote,
         icon: const AdaptiveIcon(
-          icon: Icons.draw,
-          cupertinoIcon: CupertinoIcons.pencil_outline,
+          icon: Icons.note_add_outlined,
+          cupertinoIcon: CupertinoIcons.square_pencil,
+        ),
+      ),
+    ),
+    HomeRoute._(
+      _homeFunction({'subpage': HomePage.newDrawingSubpage}),
+      // Aha! copy: opens the New drawing sheet; see ResponsiveNavbar.
+      destination: NavigationDestination(
+        label: t.home.create.newDrawing,
+        icon: const AdaptiveIcon(
+          icon: Icons.brush_outlined,
+          cupertinoIcon: CupertinoIcons.paintbrush,
         ),
       ),
     ),

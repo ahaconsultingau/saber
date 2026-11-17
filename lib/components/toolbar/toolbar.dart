@@ -1,4 +1,5 @@
 import 'dart:io';
+import 'dart:math';
 
 import 'package:collapsible/collapsible.dart';
 import 'package:cupertino_ui/cupertino_ui.dart';
@@ -11,6 +12,7 @@ import 'package:material_ui/material_ui.dart';
 import 'package:saber/components/theming/adaptive_icon.dart';
 import 'package:saber/components/theming/dynamic_material_app.dart';
 import 'package:saber/components/theming/uni_icon.dart';
+import 'package:saber/components/toolbar/aha_slider.dart';
 import 'package:saber/components/toolbar/color_bar.dart';
 import 'package:saber/components/toolbar/export_bar.dart';
 import 'package:saber/components/toolbar/pen_modal.dart';
@@ -22,6 +24,7 @@ import 'package:saber/data/extensions/color_extensions.dart';
 import 'package:saber/data/prefs.dart';
 import 'package:saber/data/tools/_tool.dart';
 import 'package:saber/data/tools/eraser.dart';
+import 'package:saber/data/tools/fill.dart';
 import 'package:saber/data/tools/highlighter.dart';
 import 'package:saber/data/tools/laser_pointer.dart';
 import 'package:saber/data/tools/pen.dart';
@@ -48,12 +51,23 @@ class Toolbar extends StatefulWidget {
     required this.paste,
     required this.duplicateSelection,
     required this.deleteSelection,
+    required this.convertSelectionToText,
+    required this.insertTable,
     required this.exportAsSba,
     required this.exportAsPdf,
     required this.exportAsPng,
+    this.sidePanelWidth = 0,
+    this.drawRow,
   });
 
+  /// Aha! copy: the Draw row, shown above the tools on drawings only.
+  final Widget? drawRow;
+
   final bool readOnly;
+
+  /// Aha! copy: the width of the Pages or Bookmarks panel open on the
+  /// right, which the colour bar keeps clear of.
+  final double sidePanelWidth;
 
   final ValueChanged<Tool> setTool;
   final Tool currentTool;
@@ -77,6 +91,10 @@ class Toolbar extends StatefulWidget {
   final VoidCallback duplicateSelection;
   final VoidCallback deleteSelection;
 
+  /// Null when handwriting recognition isn't available on this platform.
+  final VoidCallback? convertSelectionToText;
+  final VoidCallback insertTable;
+
   final Future Function(BuildContext)? exportAsSba;
   final Future Function(BuildContext)? exportAsPdf;
   final Future Function(BuildContext)? exportAsPng;
@@ -91,11 +109,50 @@ class Toolbar extends StatefulWidget {
 class _ToolbarState extends State<Toolbar> {
   ValueNotifier<bool> showExportOptions = ValueNotifier(false);
   ValueNotifier<bool> showColorOptions = ValueNotifier(false);
+  final _colourPortal = OverlayPortalController();
+
+  /// Where this toolbar is in the overlay the colour bar floats in.
+  Rect? _toolbarRect() {
+    final box = context.findRenderObject();
+    final overlay = Overlay.maybeOf(context)?.context.findRenderObject();
+    if (box is! RenderBox || !box.hasSize) return null;
+    return box.localToGlobal(Offset.zero, ancestor: overlay) & box.size;
+  }
+
+  /// Where this toolbar is, kept up to date as it grows or shrinks (its
+  /// option rows open and close), so the colour bar never covers it.
+  final _toolbarRectNotifier = ValueNotifier<Rect?>(null);
+
+  void _measureToolbar() {
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      if (mounted) _toolbarRectNotifier.value = _toolbarRect();
+    });
+  }
+
+  void _syncColourPortal() {
+    // Aha! copy: remember whether the bar is open, for the next note too.
+    stows.colourBarOpen.value = showColorOptions.value;
+    if (showColorOptions.value) {
+      _measureToolbar();
+      _colourPortal.show();
+    } else {
+      _colourPortal.hide();
+    }
+  }
+
   ValueNotifier<ToolOptions> toolOptionsType = ValueNotifier(ToolOptions.hide);
 
   @override
   void initState() {
     _assignKeybindings();
+    showColorOptions.addListener(_syncColourPortal);
+    // Aha! copy: the colour bar stays open until the colour circle is
+    // tapped again, so it's still there in the next note.
+    if (stows.colourBarOpen.value) {
+      WidgetsBinding.instance.addPostFrameCallback((_) {
+        if (mounted) showColorOptions.value = true;
+      });
+    }
 
     DynamicMaterialApp.addFullscreenListener(_setState);
 
@@ -187,10 +244,18 @@ class _ToolbarState extends State<Toolbar> {
         : Toolbar._buttonPaddingHorizontal;
 
     final currentColor = switch (widget.currentTool) {
+      final FillTool fill => fill.color,
       final Pen pen => pen.color,
       final Select select => select.getDominantStrokeColor(),
       _ => null,
     };
+
+    // Aha! copy: the eraser's size shows while the eraser is in use.
+    if (widget.currentTool is Eraser) {
+      toolOptionsType.value = .eraser;
+    } else if (toolOptionsType.value == .eraser) {
+      toolOptionsType.value = .hide;
+    }
 
     if (widget.currentTool == Select.currentSelect) {
       // Enable selection bar only when selection is done
@@ -200,6 +265,7 @@ class _ToolbarState extends State<Toolbar> {
     }
 
     final bars = <Widget>[
+      ?widget.drawRow,
       ValueListenableBuilder(
         valueListenable: showExportOptions,
         builder: (context, showExportOptions, child) {
@@ -243,32 +309,58 @@ class _ToolbarState extends State<Toolbar> {
                 getTool: () => Pencil.currentPencil,
                 setTool: widget.setTool,
               ),
+              .eraser => StatefulBuilder(
+                builder: (context, setSliderState) {
+                  final eraser = widget.currentTool is Eraser
+                      ? widget.currentTool as Eraser
+                      : null;
+                  final size = eraser?.size ?? stows.eraserSize.value;
+                  return Center(
+                    child: AhaToolSlider(
+                      key: const ValueKey('eraserSize'),
+                      axis: isToolbarVertical ? Axis.vertical : Axis.horizontal,
+                      label: t.editor.penOptions.eraserSize,
+                      valueLabel: size.round().toString(),
+                      value: size,
+                      min: Eraser.minSize,
+                      max: Eraser.maxSize,
+                      onChanged: (v) => setSliderState(() {
+                        eraser?.size = v;
+                        stows.eraserSize.value = v;
+                      }),
+                    ),
+                  );
+                },
+              ),
               .select => SelectionBar(
                 duplicateSelection: widget.duplicateSelection,
                 deleteSelection: widget.deleteSelection,
+                convertToText: widget.convertSelectionToText,
               ),
             },
           );
         },
       ),
-      ValueListenableBuilder(
-        valueListenable: showColorOptions,
-        builder: (context, showColorOptions, child) {
-          return Collapsible(
-            axis: isToolbarVertical
-                ? CollapsibleAxis.horizontal
-                : CollapsibleAxis.vertical,
-            maintainState: true,
-            collapsed: !showColorOptions,
-            child: child!,
-          );
-        },
-        child: ColorBar(
-          axis: isToolbarVertical ? Axis.vertical : Axis.horizontal,
-          setColor: widget.setColor,
-          currentColor: currentColor,
-          invert: invert,
+      // Aha! copy: the colours open as a slim bar floating on an edge of
+      // the screen (the right unless dragged elsewhere). It stays open while
+      // you write and pick colours, until the colour circle is tapped again.
+      OverlayPortal(
+        controller: _colourPortal,
+        overlayChildBuilder: (_) => ValueListenableBuilder(
+          valueListenable: _toolbarRectNotifier,
+          builder: (_, toolbarRect, _) => _ColourColumn(
+            toolbarRect: toolbarRect,
+            sidePanelWidth: widget.sidePanelWidth,
+            colourBar: (axis) => ColorBar(
+              axis: axis,
+              setColor: widget.setColor,
+              currentColor: currentColor,
+              invert: invert,
+              isHighlighter: widget.currentTool is Highlighter,
+            ),
+          ),
         ),
+        child: const SizedBox.shrink(),
       ),
       ValueListenableBuilder(
         valueListenable: widget.quillFocus,
@@ -344,7 +436,8 @@ class _ToolbarState extends State<Toolbar> {
                   }
                 },
                 padding: buttonPadding,
-                child: UniIcon(Pen.currentPen.icon, size: 16),
+                accent: ToolColours.pen,
+                child: UniIcon(Pen.currentPen.icon, size: 18),
               ),
               ToolbarIconButton(
                 tooltip: t.editor.pens.pencil,
@@ -363,7 +456,8 @@ class _ToolbarState extends State<Toolbar> {
                   }
                 },
                 padding: buttonPadding,
-                child: const FaIcon(Pencil.pencilIcon, size: 16),
+                accent: ToolColours.pencil,
+                child: const FaIcon(Pencil.pencilIcon, size: 18),
               ),
               ToolbarIconButton(
                 tooltip: t.editor.pens.highlighter,
@@ -382,7 +476,23 @@ class _ToolbarState extends State<Toolbar> {
                   }
                 },
                 padding: buttonPadding,
-                child: const FaIcon(Highlighter.highlighterIcon, size: 16),
+                accent: ToolColours.highlighter,
+                child: const FaIcon(Highlighter.highlighterIcon, size: 18),
+              ),
+              // Aha! copy: the paint bucket; the colour bar opens with it.
+              ToolbarIconButton(
+                key: const ValueKey('fillTool'),
+                tooltip: t.editor.pens.fill,
+                selected: widget.currentTool is FillTool,
+                enabled: !widget.readOnly,
+                onPressed: () {
+                  toolOptionsType.value = .hide;
+                  widget.setTool(FillTool.currentFill);
+                  showColorOptions.value = true;
+                },
+                padding: buttonPadding,
+                accent: ToolColours.fill,
+                child: const Icon(Icons.format_color_fill, size: 22),
               ),
               ValueListenableBuilder(
                 valueListenable: showColorOptions,
@@ -422,12 +532,15 @@ class _ToolbarState extends State<Toolbar> {
                   widget.setTool(Select.currentSelect);
                 },
                 padding: buttonPadding,
+                accent: ToolColours.lasso,
                 child: Icon(
                   CupertinoIcons.lasso,
                   shadows: !widget.readOnly
                       ? [
                           BoxShadow(
-                            color: colorScheme.primary,
+                            color: widget.currentTool is Select
+                                ? Colors.white
+                                : ToolColours.lasso,
                             blurRadius: 0.1,
                             spreadRadius: 10,
                             blurStyle: BlurStyle.solid,
@@ -446,6 +559,7 @@ class _ToolbarState extends State<Toolbar> {
                   widget.setTool(LaserPointer.currentLaserPointer);
                 },
                 padding: buttonPadding,
+                accent: ToolColours.laser,
                 child: const Icon(Symbols.stylus_laser_pointer),
               ),
               ToolbarIconButton(
@@ -454,16 +568,29 @@ class _ToolbarState extends State<Toolbar> {
                 enabled: !widget.readOnly,
                 onPressed: toggleEraser,
                 padding: buttonPadding,
-                child: const FaIcon(FontAwesomeIcons.eraser, size: 16),
+                accent: ToolColours.eraser,
+                child: const FaIcon(FontAwesomeIcons.eraser, size: 18),
               ),
               ToolbarIconButton(
                 tooltip: t.editor.toolbar.photo,
                 enabled: !widget.readOnly,
                 onPressed: widget.pickPhoto,
                 padding: buttonPadding,
+                accent: ToolColours.photo,
                 child: const AdaptiveIcon(
                   icon: Icons.photo,
                   cupertinoIcon: CupertinoIcons.photo,
+                ),
+              ),
+              ToolbarIconButton(
+                tooltip: t.editor.toolbar.table,
+                enabled: !widget.readOnly,
+                onPressed: widget.insertTable,
+                padding: buttonPadding,
+                accent: ToolColours.table,
+                child: const AdaptiveIcon(
+                  icon: Icons.table_chart_outlined,
+                  cupertinoIcon: CupertinoIcons.table,
                 ),
               ),
               ToolbarIconButton(
@@ -472,6 +599,7 @@ class _ToolbarState extends State<Toolbar> {
                 enabled: !widget.readOnly,
                 onPressed: widget.toggleTextEditing,
                 padding: buttonPadding,
+                accent: ToolColours.text,
                 child: const AdaptiveIcon(
                   icon: Icons.text_fields,
                   cupertinoIcon: CupertinoIcons.text_cursor,
@@ -554,30 +682,249 @@ class _ToolbarState extends State<Toolbar> {
       ),
     ];
 
-    return Flex(
-      direction: isToolbarVertical ? Axis.horizontal : Axis.vertical,
-      textDirection: switch (stows.editorToolbarAlignment.value) {
-        AxisDirection.left => .rtl,
-        AxisDirection.right => .ltr,
-        _ => null,
+    return NotificationListener<SizeChangedLayoutNotification>(
+      onNotification: (_) {
+        _measureToolbar();
+        return true;
       },
-      verticalDirection: switch (stows.editorToolbarAlignment.value) {
-        AxisDirection.down => VerticalDirection.down,
-        AxisDirection.up => VerticalDirection.up,
-        _ => VerticalDirection.down,
-      },
-      children: bars,
+      child: SizeChangedLayoutNotifier(
+        child: Flex(
+          direction: isToolbarVertical ? Axis.horizontal : Axis.vertical,
+          textDirection: switch (stows.editorToolbarAlignment.value) {
+            AxisDirection.left => .rtl,
+            AxisDirection.right => .ltr,
+            _ => null,
+          },
+          verticalDirection: switch (stows.editorToolbarAlignment.value) {
+            AxisDirection.down => VerticalDirection.down,
+            AxisDirection.up => VerticalDirection.up,
+            _ => VerticalDirection.down,
+          },
+          children: bars,
+        ),
+      ),
     );
   }
 
   @override
   void dispose() {
+    _toolbarRectNotifier.dispose();
     DynamicMaterialApp.removeFullscreenListener(_setState);
     DynamicMaterialApp.setFullscreen(false, updateSystem: true);
+    showColorOptions.removeListener(_syncColourPortal);
 
     _removeKeybindings();
     super.dispose();
   }
 }
 
-enum ToolOptions { hide, pen, highlighter, pencil, select }
+enum ToolOptions { hide, pen, highlighter, pencil, select, eraser }
+
+/// Aha! copy: the floating colour bar. It opens on the right edge (or the
+/// edge it was last dragged to), upright on the left and right, across at
+/// the top and bottom. Drag its handle and it follows the finger, then snaps
+/// to the nearest edge when let go. Nothing else is covered: the page around
+/// it can still be written on.
+class _ColourColumn extends StatefulWidget {
+  const new({
+    required this.toolbarRect,
+    required this.colourBar,
+    this.sidePanelWidth = 0,
+  });
+
+  /// The Pages or Bookmarks panel open on the right, to keep clear of.
+  final double sidePanelWidth;
+
+  /// Where the editor's toolbar is on screen, so the bar doesn't cover it.
+  final Rect? toolbarRect;
+
+  final Widget Function(Axis axis) colourBar;
+
+  /// Thickness of the bar.
+  static const thickness = 48.0;
+
+  /// The edge of a [size] screen nearest to [point].
+  static AxisDirection nearestEdge(Offset point, Size size) {
+    final distances = {
+      AxisDirection.left: point.dx,
+      AxisDirection.right: size.width - point.dx,
+      AxisDirection.up: point.dy,
+      AxisDirection.down: size.height - point.dy,
+    };
+    return distances.entries.reduce((a, b) => b.value < a.value ? b : a).key;
+  }
+
+  @override
+  State<_ColourColumn> createState() => _ColourColumnState();
+}
+
+class _ColourColumnState extends State<_ColourColumn> {
+  /// Where the finger is while the bar is being dragged.
+  Offset? dragPoint;
+
+  /// Keeps the handle (and the drag in progress) alive as the bar moves
+  /// and turns while being dragged.
+  final _handleKey = GlobalKey(debugLabel: 'colourBarHandle');
+
+  static Axis _axisFor(AxisDirection edge) =>
+      edge == AxisDirection.left || edge == AxisDirection.right
+      ? Axis.vertical
+      : Axis.horizontal;
+
+  Widget _bar(Axis axis, double maxLength) {
+    final handle = Tooltip(
+      message: t.editor.toolbar.moveColours,
+      child: GestureDetector(
+        key: _handleKey,
+        behavior: HitTestBehavior.opaque,
+        onPanStart: (d) => setState(() => dragPoint = d.globalPosition),
+        onPanUpdate: (d) => setState(() => dragPoint = d.globalPosition),
+        onPanEnd: (_) => _drop(),
+        onPanCancel: _drop,
+        child: SizedBox.square(
+          dimension: 32,
+          child: Icon(
+            Icons.drag_indicator,
+            size: 20,
+            color: ColorScheme.of(context).onSurfaceVariant,
+          ),
+        ),
+      ),
+    );
+    final content = Flex(
+      direction: axis,
+      mainAxisSize: .min,
+      children: [
+        handle,
+        Flexible(child: widget.colourBar(axis)),
+      ],
+    );
+    return Material(
+      key: const ValueKey('colourColumn'),
+      elevation: 6,
+      borderRadius: BorderRadius.circular(24),
+      color: ColorScheme.of(context).surfaceContainerHigh,
+      // As long as its colours need (scrolls if the screen is short).
+      child: axis == Axis.vertical
+          ? ConstrainedBox(
+              constraints: BoxConstraints(maxHeight: maxLength),
+              child: SizedBox(
+                width: _ColourColumn.thickness,
+                child: IntrinsicHeight(child: content),
+              ),
+            )
+          : ConstrainedBox(
+              constraints: BoxConstraints(maxWidth: maxLength),
+              child: SizedBox(
+                height: _ColourColumn.thickness,
+                child: IntrinsicWidth(child: content),
+              ),
+            ),
+    );
+  }
+
+  void _drop() {
+    final point = dragPoint;
+    if (point == null) return;
+    stows.colourBarEdge.value = _ColourColumn.nearestEdge(
+      point,
+      MediaQuery.sizeOf(context),
+    );
+    setState(() => dragPoint = null);
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    final media = MediaQuery.of(context);
+    final size = media.size;
+    const gap = 8.0;
+
+    // Keep clear of the status bar, the app bar and the toolbar.
+    var top = media.padding.top + kToolbarHeight + gap;
+    var bottom = media.padding.bottom + gap;
+    var left = media.padding.left + gap;
+    var right = media.padding.right + gap + widget.sidePanelWidth;
+    if (widget.toolbarRect case final toolbar?) {
+      if (toolbar.width >= toolbar.height) {
+        if (toolbar.center.dy > size.height / 2) {
+          bottom = max(bottom, size.height - toolbar.top + gap);
+        } else {
+          top = max(top, toolbar.bottom + gap);
+        }
+      } else if (toolbar.center.dx > size.width / 2) {
+        right = max(right, size.width - toolbar.left + gap);
+      } else {
+        left = max(left, toolbar.right + gap);
+      }
+    }
+
+    final Widget placed;
+    if (dragPoint case final point?) {
+      // Follows the finger, shaped for the edge it would snap to.
+      final axis = _axisFor(_ColourColumn.nearestEdge(point, size));
+      const half = _ColourColumn.thickness / 2;
+      placed = Positioned(
+        left: point.dx - half,
+        top: point.dy - half,
+        child: _bar(
+          axis,
+          axis == Axis.vertical ? size.height - 2 * gap : size.width - 2 * gap,
+        ),
+      );
+    } else {
+      final edge = stows.colourBarEdge.value;
+      final axis = _axisFor(edge);
+      final bar = Center(
+        child: _bar(
+          axis,
+          axis == Axis.vertical
+              ? size.height - top - bottom
+              : size.width - left - right,
+        ),
+      );
+      placed = switch (edge) {
+        AxisDirection.right => Positioned(
+          right: right,
+          top: top,
+          bottom: bottom,
+          child: bar,
+        ),
+        AxisDirection.left => Positioned(
+          left: left,
+          top: top,
+          bottom: bottom,
+          child: bar,
+        ),
+        AxisDirection.up => Positioned(
+          top: top,
+          left: left,
+          right: right,
+          child: bar,
+        ),
+        AxisDirection.down => Positioned(
+          bottom: bottom,
+          left: left,
+          right: right,
+          child: bar,
+        ),
+      };
+    }
+
+    return Stack(children: [placed]);
+  }
+}
+
+/// Aha! copy: each tool's own colour in the toolbar (drawings and notes),
+/// so tools are easier to tell apart at a glance.
+abstract final class ToolColours {
+  static const pen = Color(0xFF2F6FDE);
+  static const pencil = Color(0xFFE07B1F);
+  static const highlighter = Color(0xFFD4A20B);
+  static const fill = Color(0xFF13958F);
+  static const lasso = Color(0xFF7C4DDB);
+  static const laser = Color(0xFFD9363E);
+  static const eraser = Color(0xFFD9538A);
+  static const photo = Color(0xFF2E9150);
+  static const table = Color(0xFF4A63C8);
+  static const text = Color(0xFF52606D);
+}

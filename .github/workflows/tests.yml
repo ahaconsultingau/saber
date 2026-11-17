@@ -49,6 +49,13 @@ jobs:
       - name: Disable Flutter CLI animations
         run: flutter config --no-cli-animations
 
+      # Aha! copy: the restored pub cache holds git dependencies from before
+      # dynamic_yaru was pinned to a new commit (Nov 2026), and pub then
+      # resolves without `ini` but writes a package graph that needs it.
+      # Fetch git dependencies fresh, and clear package files built from them.
+      - name: Clear stale package files
+        run: rm -rf "${PUB_CACHE:?}/git" .dart_tool packages/*/.dart_tool packages/*/pubspec.lock .flutter-plugins-dependencies packages/*/.flutter-plugins-dependencies
+
       - run: flutter pub get
 
       - name: Download Apple fonts

@@ -1,3 +1,5 @@
+import 'dart:math' as math;
+
 import 'package:flutter/foundation.dart';
 import 'package:material_ui/material_ui.dart';
 import 'package:saber/data/extensions/color_extensions.dart';
@@ -133,6 +135,41 @@ class CanvasBackgroundPainter extends CustomPainter {
           for (double x = 0; x <= size.width; x += lineHeight) {
             yield PatternElement(Offset(x, y), Offset(x, y), isLine: false);
           }
+        }
+      case .isometric:
+        // Aha! copy: lines at 30° up, 30° down and upright, making
+        // triangles with sides [lineHeight] long, below the usual top margin.
+        final side = lineHeight.toDouble();
+        final top = lineHeight * 2.0;
+        final slope = math.tan(math.pi / 6);
+        final step = side / math.cos(math.pi / 6);
+        // The part of the line y = y0 + s·x inside the page, below [top].
+        PatternElement? clip(double y0, double s) {
+          var x0 = 0.0, x1 = size.width;
+          final a = (top - y0) / s, b = (size.height - y0) / s;
+          x0 = math.max(x0, math.min(a, b));
+          x1 = math.min(x1, math.max(a, b));
+          if (x1 - x0 < 0.5) return null;
+          return PatternElement(
+            Offset(x0, (y0 + s * x0).clamp(top, size.height)),
+            Offset(x1, (y0 + s * x1).clamp(top, size.height)),
+            isLine: true,
+          );
+        }
+
+        final rise = size.width * slope;
+        for (double c = top - rise; c < size.height; c += step) {
+          if (clip(c, slope) case final line?) yield line;
+        }
+        for (double c = top; c < size.height + rise; c += step) {
+          if (clip(c, -slope) case final line?) yield line;
+        }
+        for (double x = 0; x <= size.width; x += side * math.cos(math.pi / 6)) {
+          yield PatternElement(
+            Offset(x, top),
+            Offset(x, size.height),
+            isLine: true,
+          );
         }
       case .staffs:
       case .tablature:

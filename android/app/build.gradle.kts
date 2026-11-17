@@ -29,7 +29,9 @@ android {
 
     defaultConfig {
         // https://flutter.dev/to/review-gradle-config
-        applicationId = "com.adilhanney.saber"
+        // Aha! copy: a separate app id, so it installs alongside (or instead of)
+        // the Play Store Saber without clashing.
+        applicationId = "com.adilhanney.saber.aha"
         // If you change this minSdk, also update patches/pre/remove_proprietary_dependencies.sh.
         minSdk = 26
         targetSdk = flutter.targetSdkVersion

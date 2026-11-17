@@ -12,6 +12,7 @@ import 'package:path/path.dart' as p;
 import 'package:saber/components/canvas/_asset_cache.dart';
 import 'package:saber/components/canvas/_stroke.dart';
 import 'package:saber/components/canvas/image/editor_image.dart';
+import 'package:saber/data/aha/note_drawings.dart';
 import 'package:saber/data/editor/page.dart';
 import 'package:saber/data/file_manager/file_manager.dart';
 import 'package:saber/data/flavor_config.dart';
@@ -75,6 +76,26 @@ class EditorCoreInfo {
   /// Stores the current page index so that it can be restored when the file is reloaded.
   int? initialPageIndex;
 
+  /// Aha! copy: the line style chosen in the New note sheet, used once by
+  /// the next new note in place of the default.
+  static CanvasBackgroundPattern? nextNewNotePattern;
+  static CanvasBackgroundPattern? _takeNextNewNotePattern() {
+    final pattern = nextNewNotePattern;
+    nextNewNotePattern = null;
+    return pattern;
+  }
+
+  /// Aha! copy: true for a note that didn't exist on disk yet (a new note),
+  /// so the editor can pick the starting pen from Settings › New pages.
+  var createdFresh = false;
+
+  /// Aha! copy: the settings chosen in the New drawing sheet, used once by
+  /// the next new note, which then becomes a drawing.
+  static DrawingSettings? nextNewDrawing;
+
+  /// Aha! copy: set on a new note made from the New drawing sheet.
+  DrawingSettings? newDrawing;
+
   static final placeholder =
       EditorCoreInfo._(
         filePath: '',
@@ -101,11 +122,27 @@ class EditorCoreInfo {
   @visibleForTesting
   new({required this.filePath, this.readOnlyReason})
     : nextImageId = 0,
-      backgroundPattern = stows.lastBackgroundPattern.value,
-      lineHeight = stows.lastLineHeight.value,
-      lineThickness = stows.lastLineThickness.value,
+      // Aha! copy: a new note starts with the design in Settings › New pages.
+      // The New note sheet's choice is only for a real new note, not the
+      // stand-in for a note that couldn't be read.
+      backgroundPattern =
+          (readOnlyReason == null ? _takeNextNewNotePattern() : null) ??
+          stows.newNoteBackgroundPattern.value,
+      lineHeight = stows.newNoteLineHeight.value,
+      lineThickness = stows.newNoteLineThickness.value,
+      backgroundColor = stows.newNoteBackgroundColor.value == 0
+          ? null
+          : Color(stows.newNoteBackgroundColor.value),
       pages = [],
-      assetCache = AssetCache();
+      assetCache = AssetCache() {
+    createdFresh = readOnlyReason == null;
+    if (createdFresh && nextNewDrawing != null) {
+      newDrawing = nextNewDrawing;
+      backgroundPattern = newDrawing!.grid;
+      backgroundColor = null; // drawings start on white paper
+    }
+    nextNewDrawing = null;
+  }
 
   new _({
     required this.filePath,
@@ -126,6 +163,7 @@ class EditorCoreInfo {
     Map<String, dynamic> json, {
     required String filePath,
     required bool onlyFirstPage,
+    bool keepDrawingOrder = false,
   }) {
     ReadOnlyReason? readOnlyReason;
     final fileVersion = json['v'] as int? ?? 0;
@@ -204,7 +242,7 @@ class EditorCoreInfo {
             : null,
         onlyFirstPage: onlyFirstPage,
       )
-      .._sortStrokes();
+      .._sortStrokes(keepDrawingOrder: keepDrawingOrder);
   }
 
   /// Old json format is just a list of strokes
@@ -342,9 +380,13 @@ class EditorCoreInfo {
     }
   }
 
-  void _sortStrokes() {
+  /// Saber groups strokes by pen type. Aha! copy: a drawing keeps them in
+  /// the order they were drawn ([keepDrawingOrder]), so later paint stays
+  /// on top.
+  void _sortStrokes({bool keepDrawingOrder = false}) {
     for (final page in pages) {
-      page.sortStrokes();
+      page.keepDrawingOrder = keepDrawingOrder;
+      if (!keepDrawingOrder) page.sortStrokes();
     }
   }
 
@@ -373,6 +415,7 @@ class EditorCoreInfo {
       bsonBytes: bsonBytes,
       path: path,
       onlyFirstPage: onlyFirstPage,
+      keepDrawingOrder: NoteDrawings.isDrawing(path),
     );
   }
 
@@ -383,6 +426,7 @@ class EditorCoreInfo {
     required String path,
     required bool onlyFirstPage,
     bool alwaysUseIsolate = false,
+    bool keepDrawingOrder = false,
   }) async {
     EditorCoreInfo coreInfo;
     try {
@@ -391,6 +435,7 @@ class EditorCoreInfo {
         bsonBytes,
         path,
         onlyFirstPage,
+        keepDrawingOrder,
       );
 
       final length = jsonString?.length ?? bsonBytes!.length;
@@ -432,8 +477,9 @@ class EditorCoreInfo {
     String? jsonString,
     Uint8List? bsonBytes,
     String path,
-    bool onlyFirstPage,
-  ) {
+    bool onlyFirstPage, [
+    bool keepDrawingOrder = false,
+  ]) {
     final dynamic json;
     try {
       if (bsonBytes != null) {
@@ -463,6 +509,7 @@ class EditorCoreInfo {
         json as Map<String, dynamic>,
         filePath: path,
         onlyFirstPage: onlyFirstPage,
+        keepDrawingOrder: keepDrawingOrder,
       );
     }
   }

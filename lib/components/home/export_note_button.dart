@@ -5,6 +5,7 @@ import 'package:cupertino_ui/cupertino_ui.dart';
 import 'package:flutter_speed_dial/flutter_speed_dial.dart';
 import 'package:material_ui/material_ui.dart';
 import 'package:saber/components/theming/adaptive_circular_progress_indicator.dart';
+import 'package:saber/data/aha/note_locks.dart';
 import 'package:saber/data/editor/editor_core_info.dart';
 import 'package:saber/data/editor/editor_exporter.dart';
 import 'package:saber/data/file_manager/file_manager.dart';
@@ -24,6 +25,12 @@ class _ExportNoteButtonState extends State<ExportNoteButton> {
   var _currentlyExporting = false;
 
   Future exportFile(List<String> selectedFiles, bool exportPdf) async {
+    // Aha! copy: a locked note isn't exported until it's unlocked.
+    if (selectedFiles.any(NoteLocks.isNoteLocked)) {
+      ScaffoldMessenger.of(context)
+          .showSnackBar(SnackBar(content: Text(t.locks.exportLocked)));
+      return;
+    }
     setState(() => _currentlyExporting = true);
 
     final files = <ArchiveFile>[];

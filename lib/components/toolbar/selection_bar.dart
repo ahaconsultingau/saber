@@ -7,10 +7,15 @@ class SelectionBar extends StatelessWidget {
   final VoidCallback duplicateSelection;
   final VoidCallback deleteSelection;
 
+  /// Turns the selected handwriting into text.
+  /// Null hides the button (e.g. on platforms without recognition).
+  final VoidCallback? convertToText;
+
   const new({
     super.key,
     required this.duplicateSelection,
     required this.deleteSelection,
+    this.convertToText,
   });
 
   @override
@@ -44,6 +49,17 @@ class SelectionBar extends StatelessWidget {
             cupertinoIcon: CupertinoIcons.delete,
           ),
         ),
+        if (convertToText != null)
+          IconButton(
+            onPressed: convertToText,
+            style: TextButton.styleFrom(
+              foregroundColor: ColorScheme.of(context).secondary,
+              backgroundColor: Colors.transparent,
+              shape: const CircleBorder(),
+            ),
+            tooltip: t.editor.selectionBar.convertToText,
+            icon: const Icon(Icons.text_fields),
+          ),
       ],
     );
   }

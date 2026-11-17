@@ -209,6 +209,117 @@ class Stows {
     volatile: !_isOnMainIsolate,
   );
 
+  /// Aha! copy: ignore touch on the page while the pen is near or has just
+  /// lifted, so a resting palm doesn't move the page.
+  final penGuard = PlainStow('penGuard', true, volatile: !_isOnMainIsolate);
+
+  /// How long (ms) touch stays ignored after the pen was last seen.
+  final penGuardHoldMs = PlainStow(
+    'penGuardHoldMs',
+    1000,
+    volatile: !_isOnMainIsolate,
+  );
+
+  /// Aha! copy: the bottom share of the page where touch (a resting palm)
+  /// is ignored; the pen still writes there. 0 turns it off.
+  final palmZone = PlainStow('palmZone', 0.125, volatile: !_isOnMainIsolate);
+
+  /// Aha! copy: ignore wide, flat touches (a palm) anywhere on the page.
+  final palmSizeGuard = PlainStow(
+    'palmSizeGuard',
+    true,
+    volatile: !_isOnMainIsolate,
+  );
+
+  /// Aha! copy: notes open full screen (the system bars hidden), so a palm
+  /// at the screen's edge can't swipe the app away in one go.
+  final editorImmersive = PlainStow(
+    'editorImmersive',
+    true,
+    volatile: !_isOnMainIsolate,
+  );
+
+  /// Aha! copy: one finger (or a sleeve) doesn't move the page; scroll and
+  /// zoom with two fingers.
+  final twoFingerScrollOnly = PlainStow(
+    'twoFingerScrollOnly',
+    true,
+    volatile: !_isOnMainIsolate,
+  );
+
+  /// Aha! copy: which edge of the screen the colour bar sits on.
+  /// Starts on the right; moves wherever it was last dragged.
+  final colourBarEdge = PlainStow(
+    'colourBarEdge',
+    AxisDirection.right,
+    codec: const EnumCodec(AxisDirection.values),
+    volatile: !_isOnMainIsolate,
+  );
+
+  /// Aha! copy: password locks on notes and folders (path, then a salted
+  /// hash); see NoteLocks. Kept on this tablet only.
+  final noteLocks = PlainStow(
+    'noteLocks',
+    <String>[],
+    volatile: !_isOnMainIsolate,
+  );
+
+  /// Aha! copy: the eraser's size (page units, as a radius).
+  final eraserSize = PlainStow('eraserSize', 10.0, volatile: !_isOnMainIsolate);
+
+  /// Aha! copy: how soft the brush's edges are, 0 (crisp) to 1 (soft).
+  final lastBrushFeather = PlainStow(
+    'lastBrushFeather',
+    0.0,
+    volatile: !_isOnMainIsolate,
+  );
+
+  /// Aha! copy: whether the last pen was the brush (it saves as a fountain
+  /// pen, so the last tool alone can't tell).
+  final lastPenIsBrush = PlainStow(
+    'lastPenIsBrush',
+    false,
+    volatile: !_isOnMainIsolate,
+  );
+
+  /// Aha! copy: whether the colour bar was left open.
+  final colourBarOpen = PlainStow(
+    'colourBarOpen',
+    false,
+    volatile: !_isOnMainIsolate,
+  );
+
+  /// Aha! copy: the six colours on the colour bar for pens and pencils,
+  /// as ARGB numbers. Each can be changed with the colour picker.
+  final penColourSlots = PlainStow(
+    'penColourSlots',
+    defaultPenColourSlots,
+    volatile: !_isOnMainIsolate,
+  );
+  static const defaultPenColourSlots = <String>[
+    '4278190080', // black
+    '4280391411', // blue
+    '4294940672', // orange
+    '4283215696', // green
+    '4294198070', // red
+    '4288585374', // grey
+  ];
+
+  /// Aha! copy: the six colours on the colour bar for the highlighter.
+  final highlighterColourSlots = PlainStow(
+    'highlighterColourSlots',
+    defaultHighlighterColourSlots,
+    volatile: !_isOnMainIsolate,
+  );
+  static const defaultHighlighterColourSlots = <String>[
+    '4294961979', // yellow
+    '4283215696', // green
+    '4293467747', // pink
+    '4280391411', // blue
+    '4294940672', // orange
+    '4288423856', // purple
+  ];
+
   final recentColorsChronological = PlainStow(
     'recentColorsChronological',
     <String>[],
@@ -272,6 +383,13 @@ class Stows {
         Pen.shapePenOptions,
         fromJson: _strokeOptionsFromJson,
         volatile: !_isOnMainIsolate,
+      ),
+      // Aha! copy: the paintbrush's size and feel.
+      lastBrushOptions = PlainStow.json(
+        'lastBrushProperties',
+        Pen.brushOptions,
+        fromJson: _strokeOptionsFromJson,
+        volatile: !_isOnMainIsolate,
       );
   final lastFountainPenColor = PlainStow(
         'lastFountainPenColor',
@@ -298,6 +416,66 @@ class Stows {
         Colors.black.toARGB32(),
         volatile: !_isOnMainIsolate,
       );
+
+  /// Aha! copy: the page design every new note starts with
+  /// (Settings › New pages). Changing one note's design no longer changes
+  /// the next new note.
+  final newNoteBackgroundPattern = PlainStow(
+    'newNoteBackgroundPattern',
+    CanvasBackgroundPattern.none,
+    codec: const EnumCodec(CanvasBackgroundPattern.values),
+    volatile: !_isOnMainIsolate,
+  );
+
+  /// Aha! copy: the opacity used on drawings (1 = solid).
+  final drawingOpacity = PlainStow(
+    'drawingOpacity',
+    1.0,
+    volatile: !_isOnMainIsolate,
+  );
+
+  /// Aha! copy: the paper and shape last chosen for a new drawing.
+  final newDrawingGrid = PlainStow(
+    'newDrawingGrid',
+    CanvasBackgroundPattern.none,
+    codec: const EnumCodec(CanvasBackgroundPattern.values),
+    volatile: !_isOnMainIsolate,
+  );
+  final newDrawingShape = PlainStow(
+    'newDrawingShape',
+    'portrait',
+    volatile: !_isOnMainIsolate,
+  );
+  final newDrawingPaper = PlainStow(
+    'newDrawingPaper',
+    '',
+    volatile: !_isOnMainIsolate,
+  );
+  final newNoteLineHeight = PlainStow(
+    'newNoteLineHeight',
+    defaultLineHeight,
+    volatile: !_isOnMainIsolate,
+  );
+  final newNoteLineThickness = PlainStow(
+    'newNoteLineThickness',
+    defaultLineThickness,
+    volatile: !_isOnMainIsolate,
+  );
+
+  /// ARGB, or 0 for Saber's usual page colour.
+  final newNoteBackgroundColor = PlainStow(
+    'newNoteBackgroundColor',
+    0,
+    volatile: !_isOnMainIsolate,
+  );
+
+  /// A [ToolId] name, or '' to start with the pen you last used.
+  final newNoteStartingTool = PlainStow(
+    'newNoteStartingTool',
+    '',
+    volatile: !_isOnMainIsolate,
+  );
+
   final lastBackgroundPattern = PlainStow(
     'lastBackgroundPattern',
     CanvasBackgroundPattern.none,

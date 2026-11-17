@@ -92,7 +92,10 @@ void _testPatternWithLineHeight(
       reason: 'All elements should be lines or all elements should be dots',
     );
 
-    if (allLines) {
+    // Aha! copy: the isometric grid is diagonal by design, so the
+    // horizontal/vertical spacing rules below don't apply to it (its own
+    // test is in draw_mode_test.dart). The bounds and margin checks above do.
+    if (allLines && pattern != .isometric) {
       // Check spacing
       double lastPosition = -1;
       bool? lastWasHorizontal;

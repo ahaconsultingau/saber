@@ -13,6 +13,7 @@ import 'package:path/path.dart' as p;
 import 'package:path_provider/path_provider.dart';
 import 'package:permission_handler/permission_handler.dart';
 import 'package:saber/components/home/sort_button.dart';
+import 'package:saber/data/aha/note_locks.dart';
 import 'package:saber/data/nextcloud/saber_syncer.dart';
 import 'package:saber/data/prefs.dart';
 import 'package:saber/i18n/strings.g.dart';
@@ -38,9 +39,14 @@ class FileManager {
   // TODO(adil192): Implement or remove this
   static String _sanitisePath(String path) => File(path).path;
 
+  /// Aha! copy: a note's own file (not its assets).
+  static final _noteExtension = RegExp(r'\.sbn2?$');
+
   /// A regex that matches the file names/paths of asset files,
   /// including previews, e.g. `mynote.sbn2.1`.
-  static final assetFileRegex = RegExp(r'\.sbn2?\.[\dp]+$');
+  /// A note's companion files: numbered assets, the preview (`.p`) and,
+  /// in the Aha! copy, its bookmarks (`.bm`).
+  static final assetFileRegex = RegExp(r'\.sbn2?\.([\dp]+|bm|dw)$');
 
   /// Forbidden names for files and directories (on any/all platforms).
   /// These patterns match the base name only (not the full path).
@@ -407,6 +413,13 @@ class FileManager {
     _renameReferences(fromPath, toPath);
     broadcastFileWrite(FileOperationType.delete, fromPath);
     broadcastFileWrite(FileOperationType.write, toPath);
+    // Aha! copy: a password lock moves with its note.
+    if (_noteExtension.hasMatch(fromPath)) {
+      NoteLocks.moved(
+        fromPath.replaceFirst(_noteExtension, ''),
+        toPath.replaceFirst(_noteExtension, ''),
+      );
+    }
 
     if (alsoMoveAssets && !assetFileRegex.hasMatch(fromPath)) {
       final assets = <String>[];
@@ -418,8 +431,8 @@ class FileManager {
           break;
         }
       }
-      {
-        const assetNumber = 'p';
+      // The preview, and (Aha! copy) the note's bookmarks and drawing marker.
+      for (final assetNumber in const ['p', 'bm', 'dw']) {
         final assetFile = getFile('$fromPath.$assetNumber');
         if (assetFile.existsSync()) {
           assets.add(assetNumber);
@@ -454,6 +467,9 @@ class FileManager {
 
     _removeReferences(filePath);
     broadcastFileWrite(FileOperationType.delete, filePath);
+    if (_noteExtension.hasMatch(filePath)) {
+      NoteLocks.deleted(filePath.replaceFirst(_noteExtension, ''));
+    }
 
     if (alsoDeleteAssets && !assetFileRegex.hasMatch(filePath)) {
       final assets = <int>[];
@@ -467,11 +483,17 @@ class FileManager {
       }
 
       final previewFile = getFile('$filePath.p');
+      final bookmarksFile = getFile('$filePath.bm'); // Aha! copy
+      final drawingFile = getFile('$filePath.dw'); // Aha! copy
       await Future.wait([
         for (final assetNumber in assets)
           deleteFile('$filePath.$assetNumber', alsoDeleteAssets: false),
         if (previewFile.existsSync())
           deleteFile('$filePath.p', alsoDeleteAssets: false),
+        if (bookmarksFile.existsSync())
+          deleteFile('$filePath.bm', alsoDeleteAssets: false),
+        if (drawingFile.existsSync())
+          deleteFile('$filePath.dw', alsoDeleteAssets: false),
       ]);
     }
   }
@@ -512,6 +534,11 @@ class FileManager {
         directoryPath.substring(0, directoryPath.lastIndexOf('/') + 1) +
         newName;
     await directory.rename(documentsDirectory + newPath);
+    // Aha! copy: password locks move with the folder.
+    NoteLocks.moved(
+      NoteLocks.folderKey(directoryPath),
+      NoteLocks.folderKey(newPath),
+    );
 
     for (final child in children) {
       _renameReferences(directoryPath + child, newPath + child);
@@ -539,6 +566,7 @@ class FileManager {
     }
 
     await directory.delete(recursive: recursive);
+    NoteLocks.deleted(NoteLocks.folderKey(directoryPath));
   }
 
   /// Gets the children of a directory, separated into
