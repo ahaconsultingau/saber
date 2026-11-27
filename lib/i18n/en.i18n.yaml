@@ -3,6 +3,32 @@ common:
   continueBtn: Continue
   cancel: Cancel
 home:
+  newNote:
+    title: New note
+    name: Name
+    nameHint: e.g. Bayside Council
+    folder: Folder
+    topFolder: All notes (no folder)
+    lineStyle: Line style
+    lineStyleHelp: Page colour and starting pen come from Settings › New pages
+    create: Create
+    skip: Skip
+  newDrawing:
+    title: New drawing
+    nameHint: e.g. Logo ideas
+    paper: Paper
+    shape: Shape
+    plain: Plain
+    portrait: Portrait
+    landscape: Landscape
+    square: Square
+    drawingBadge: Drawing
+    papers:
+      sketch: Sketch
+      watercolour: Watercolour
+      canvas: Canvas
+      kraft: Kraft
+      tonedGrey: Toned grey
   tabs:
     home: Home
     browse: Browse
@@ -20,8 +46,19 @@ home:
   create:
     newNote: New note
     importNote: Import note
+    quickNote: Quick note
+    quickNoteTooltip: Start a note straight away (name it later)
+    draw: Draw
+    drawTooltip: Start a new drawing
+    newDrawing: New drawing
+  movedNotes: Moved $n to $folder
+  noteshelf:
+    importing: Importing from Noteshelf…
+    imported: Imported $n Noteshelf notebooks
+    skipped: $n items (typed text or pictures) couldn't be brought across
+    failed: Couldn't read $name as a Noteshelf notebook
   welcome: Welcome to Saber
-  invalidFormat: The file you selected is not supported. Please select an sbn, sbn2, sba, or pdf file.
+  invalidFormat: The file you selected is not supported. Please select an sbn, sbn2, sba, pdf or Noteshelf (nsa) file.
   noFiles: No files found
   noPreviewAvailable: No preview available
   createNewNote: Tap the + button to create a new note
@@ -93,12 +130,28 @@ sentry:
       no: No
       later: Ask me later
 settings:
+  palmZoneOff: "Off"
   prefCategories:
     general: General
     writing: Writing
     editor: Editor
+    newPages: New pages
     performance: Performance
     advanced: Advanced
+  newPages:
+    lineStyle: Line style
+    pageColour: Page colour
+    startingPen: Starting pen
+    lastUsedPen: The pen I last used
+    preview: Preview
+    previewNote: Every new note starts like this. Existing notes keep their own design.
+    colours:
+      white: White
+      cream: Cream
+      softGrey: Soft grey
+      paleBlue: Pale blue
+      anyColour: Any colour…
+      custom: Your colour
   prefLabels:
     locale: Language
     appTheme: App theme
@@ -118,6 +171,13 @@ settings:
     disableEraserAfterUse: Auto-disable the eraser
     hideFingerDrawingToggle: Hide the finger drawing toggle
     autoDisableFingerDrawingWhenStylusDetected: Auto-disable finger drawing
+    penGuard: Ignore touch while the pen is near
+    penGuardHold: Keep ignoring touch after the pen lifts
+    twoFingerScrollOnly: Scroll with two fingers only
+    palmZone: Ignore touch along the bottom
+    palmSizeGuard: Ignore palm-sized touches
+    editorImmersive: Full screen while writing
+    keepScreenAwake: Keep the screen on in a note
     editorPromptRename: Prompt you to rename new notes
     recentColorsDontSavePresets: Don't save preset colors in recent colors
     recentColorsLength: How many recent colors to store
@@ -139,6 +199,13 @@ settings:
       fixedOn: Finger drawing is fixed as enabled
       fixedOff: Finger drawing is fixed as disabled
     autoDisableFingerDrawingWhenStylusDetected: Turn off finger drawing when a stylus is detected
+    penGuard: Stops your palm moving the page as you write
+    penGuardHold: In seconds, after the pen was last near the screen
+    twoFingerScrollOnly: One finger or a sleeve won't move the page
+    palmZone: Rest your palm at the bottom of the screen; the pen still writes there
+    palmSizeGuard: A wide touch (your palm) does nothing anywhere on the page
+    keepScreenAwake: The tablet won't go to sleep while a note is open, even while you use the tablet's handwriting
+    editorImmersive: Hides the system bars in a note, so a palm at the edge can't swipe Saber away; swipe twice to leave
     editorPromptRename: You can always rename notes later
     printPageIndicators: Show page indicators in exports
     autosave: Auto-save after a short delay, or never
@@ -270,9 +337,11 @@ update:
 editor:
   toolbar:
     toggleColors: Toggle colors (Ctrl C)
+    moveColours: Drag to move the colours to any edge
     select: Select
     toggleEraser: Toggle eraser (Ctrl E)
     photo: Images
+    table: Insert table
     text: Text
     toggleFingerDrawing: Toggle finger drawing (Ctrl F)
     undo: Undo
@@ -286,9 +355,18 @@ editor:
     highlighter: Highlighter
     pencil: Pencil
     shapePen: Shape pen
+    brush: Brush
     laserPointer: Laser pointer
+    fill: Fill (tap inside a shape)
+  fill:
+    onLine: Tap inside the shape, not on its outline.
+    open: That shape isn't closed. Close the gap and try again.
   penOptions:
     size: Size
+    feathering: Feathering
+    opacity: Opacity
+    steadiness: Steadiness
+    eraserSize: Eraser size
   colors:
     colorPicker: Color picker
     customBrightnessHue: Custom $b $h
@@ -326,6 +404,78 @@ editor:
   selectionBar:
     delete: Delete
     duplicate: Duplicate
+    convertToText: Convert to text
+  layers:
+    title: Layers
+    add: New layer
+    newName: Layer $n
+    show: Show this layer
+    hide: Hide this layer
+    menu: Layer options
+    rename: Rename
+    opacity: Opacity
+    fillLines: Fill uses these lines
+    fillLinesShort: fill edges
+    mergeDown: Merge down
+    delete: Delete layer
+    deleteTitle: Delete $name?
+    deleteHelp: Everything drawn on this layer is removed. Undo brings it all back.
+    help: Tap a layer to draw on it. The eraser and lasso only touch that layer.
+  draw:
+    row: Draw
+    layers: Layers
+    grid: Grid
+    flipView: Flip view
+    pickColour: Pick colour
+    pickColourHint: Touch the page to take a colour from it
+    tracingImage: Tracing image
+    hideTracing: Hide tracing image
+    showTracing: Show tracing image
+    addTracing: Tracing image on this page
+    removeTracing: Remove from this page
+    flipped: Flipped view
+    makeDrawing: Make this a drawing
+    makeNote: Make this a note
+  penGuard:
+    hint: Pen near · touch paused
+    backPaused: Back is paused while you write. Use the back arrow at the top to leave.
+  bookmarks:
+    title: Bookmarks
+    newMeeting: New meeting
+    newMeetingName: Meeting
+    defaultName: Client meeting
+    bookmarkThisPage: Bookmark this page
+    thisPageIsBookmarked: This page is bookmarked
+    empty: No bookmarks yet. Bookmark a page, or start a new meeting page.
+    dateAndPage: $date · page $page
+    edit: Edit bookmark
+    name: Name
+    date: Date
+    writeHeading: Also write the name and date at the top of the page
+    remove: Remove
+    save: Save
+  saveState:
+    saved: Saved
+    saving: Saving…
+    notSaved: Not saved yet
+    rename: Tap to rename
+  insertTable:
+    title: Insert table
+    rows: Rows
+    columns: Columns
+    insert: Insert
+    hint: The table is selected after it's inserted, so you can drag it into place.
+  convertToText:
+    title: Convert to text
+    downloading: Downloading the handwriting pack. This happens once and needs an internet connection.
+    reading: Reading your handwriting…
+    nothingFound: No handwriting was found in the selection.
+    failed: The handwriting couldn't be read. Check your internet connection if this is the first time, then try again.
+    removeHandwriting: Remove the handwriting
+    textLayerNote: The text is added to the page's typed text, which starts at the top of the page.
+    copy: Copy
+    copied: Copied
+    addToPage: Add to page
   menu:
     clearPage: Clear page $page/$totalPages
     clearAllPages: Clear all pages
@@ -336,6 +486,8 @@ editor:
     lineHeightDescription: Also controls the text size for typed notes
     lineThickness: Line thickness
     lineThicknessDescription: Background line thickness
+    makeDefault: Make this my default for new notes
+    madeDefault: New notes will start with this page design
     backgroundImageFit: Background image fit
     backgroundPattern: Background pattern
     import: Import
@@ -355,6 +507,7 @@ editor:
       staffs: Staffs
       tablature: Tablature
       cornell: Cornell
+      isometric: Isometric
   photoPdfError:
     title: Error
     message: "PDF files cannot be added as image. Use \"@:editor.menu.import > PDF\" for that."
@@ -378,3 +531,17 @@ editor:
   pages: Pages
   untitled: Untitled
   needsToSaveBeforeExiting: Saving your changes… You can safely exit the editor when it's done
+locks:
+  locked: Locked. Enter the password to open it.
+  password: Password
+  confirm: Password again
+  unlock: Unlock
+  wrongPassword: That password isn't right
+  addTitle: Lock with a password
+  removeTitle: Remove the lock
+  addHelp: Saber Aha will ask for this password before opening it, and hides its preview. The files aren't encrypted, so the Mac's Saber can still open them. A forgotten password can't be recovered in Saber Aha.
+  tooShort: Use at least 4 characters
+  doesNotMatch: The passwords don't match
+  lock: Lock
+  remove: Remove lock
+  exportLocked: Unlock the note before exporting it

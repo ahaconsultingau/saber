@@ -31,7 +31,13 @@ class EditorBottomSheet extends StatefulWidget {
     required this.canRasterPdf,
     required this.getIsWatchingServer,
     required this.setIsWatchingServer,
+    this.isDrawing = false,
+    this.setIsDrawing,
   });
+
+  /// Aha! copy: whether the note is a drawing, and a way to change it.
+  final bool isDrawing;
+  final Future<void> Function(bool)? setIsDrawing;
 
   final bool invert;
   final EditorCoreInfo coreInfo;
@@ -285,6 +291,45 @@ class _EditorBottomSheetState extends State<EditorBottomSheet> {
                 ),
               ],
             ),
+            // Aha! copy: save this note's page design for new notes.
+            Align(
+              alignment: AlignmentDirectional.centerStart,
+              child: OutlinedButton.icon(
+                icon: const Icon(Icons.bookmark_add_outlined),
+                label: Text(t.editor.menu.makeDefault),
+                onPressed: () {
+                  final info = widget.coreInfo;
+                  stows.newNoteBackgroundPattern.value = info.backgroundPattern;
+                  stows.newNoteLineHeight.value = info.lineHeight;
+                  stows.newNoteLineThickness.value = info.lineThickness;
+                  stows.newNoteBackgroundColor.value =
+                      info.backgroundColor?.toARGB32() ?? 0;
+                  ScaffoldMessenger.of(context).showSnackBar(
+                    SnackBar(content: Text(t.editor.menu.madeDefault)),
+                  );
+                },
+              ),
+            ),
+            // Aha! copy: a note can become a drawing (and back) at any time.
+            if (widget.setIsDrawing case final setIsDrawing?)
+              Align(
+                alignment: AlignmentDirectional.centerStart,
+                child: OutlinedButton.icon(
+                  key: const ValueKey('toggleDrawing'),
+                  icon: Icon(
+                    widget.isDrawing ? Icons.notes : Icons.brush_outlined,
+                  ),
+                  label: Text(
+                    widget.isDrawing
+                        ? t.editor.draw.makeNote
+                        : t.editor.draw.makeDrawing,
+                  ),
+                  onPressed: () async {
+                    await setIsDrawing(!widget.isDrawing);
+                    if (context.mounted) Navigator.of(context).pop();
+                  },
+                ),
+              ),
             const SizedBox(height: 16),
             Text(
               t.editor.menu.import,

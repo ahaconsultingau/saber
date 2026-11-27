@@ -23,6 +23,10 @@ class Stroke {
   bool get isEmpty => points.isEmpty;
   int get length => points.length;
 
+  /// The points as drawn, in order (read-only), e.g. for handwriting
+  /// recognition.
+  List<Offset> get inputPoints => UnmodifiableListView(points);
+
   int pageIndex;
   HasSize page;
   final ToolId toolId;
@@ -69,7 +73,18 @@ class Stroke {
     required this.pageIndex,
     required this.page,
     required this.toolId,
+    this.feather = 0,
+    this.layer = 0,
   });
+
+  /// Aha! copy: the drawing layer this stroke is on (0 for notes). Saved
+  /// under 'aL'; the standard Saber apps ignore it (all one layer there).
+  int layer;
+
+  /// Aha! copy: how soft the edges are, 0 (crisp) to 1 (soft); the brush's
+  /// feathering. Saved under 'aF', which the standard Saber apps ignore (they
+  /// draw the stroke with crisp edges).
+  double feather;
 
   factory fromJson(
     Map<String, dynamic> json, {
@@ -148,6 +163,8 @@ class Stroke {
       pageIndex: pageIndex,
       page: page,
       toolId: toolId,
+      feather: (json['aF'] as num?)?.toDouble() ?? 0,
+      layer: (json['aL'] as num?)?.toInt() ?? 0,
     )..points.addAll(points);
   }
   Map<String, dynamic> toJson() {
@@ -162,6 +179,8 @@ class Stroke {
       'ty': toolId.id,
       'pe': pressureEnabled,
       'c': color.toARGB32(),
+      if (feather > 0) 'aF': feather,
+      if (layer != 0) 'aL': layer,
     }..addAll(options.toJson());
   }
 
@@ -407,6 +426,8 @@ class Stroke {
     pageIndex: pageIndex,
     page: page,
     toolId: toolId,
+    feather: feather,
+    layer: layer,
   )..points.addAll(points);
 }
 

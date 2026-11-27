@@ -2,6 +2,7 @@ import 'package:flutter_quill/flutter_quill.dart';
 import 'package:material_ui/material_ui.dart';
 import 'package:saber/components/canvas/_stroke.dart';
 import 'package:saber/components/canvas/image/editor_image.dart';
+import 'package:saber/data/aha/note_drawings.dart';
 import 'package:saber/data/editor/page.dart';
 import 'package:sbn/canvas_background_pattern.dart';
 import 'package:sbn/change.dart';
@@ -253,4 +254,28 @@ class const HistoricBackgroundPatternChange({
   @override
   HistoricBackgroundPatternChange reverse() =>
       .new(pageIndex: pageIndex, change: change.reverse());
+}
+
+/// Aha! copy: a page's background picture was changed (e.g. a tracing
+/// image added or removed on a drawing).
+class const HistoricBackgroundImageChange({
+  required final int pageIndex,
+  required final Change<EditorImage?> change,
+}) extends Historic {
+  @override
+  HistoricBackgroundImageChange reverse() =>
+      .new(pageIndex: pageIndex, change: change.reverse());
+}
+
+/// Aha! copy: a drawing's layers changed (merged or deleted), with the
+/// strokes that moved to another layer.
+class const HistoricLayersChange({
+  required final Change<List<DrawingLayer>> layers,
+  required final Map<Stroke, Change<int>> strokeLayers,
+}) extends Historic {
+  @override
+  HistoricLayersChange reverse() => .new(
+    layers: layers.reverse(),
+    strokeLayers: strokeLayers.map((k, v) => MapEntry(k, v.reverse())),
+  );
 }

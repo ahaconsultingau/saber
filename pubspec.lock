@@ -341,11 +341,11 @@ packages:
     dependency: "direct main"
     description:
       path: "."
-      ref: "ref!/migrate-to-standalone-material_ui"
-      resolved-ref: c6e0948fae47c0d905fcb3156903c3ded90dfda3
+      ref: c0dbcded48b80383a23965b14a1de8dbf605e5f2
+      resolved-ref: c0dbcded48b80383a23965b14a1de8dbf605e5f2
       url: "https://github.com/adil192/dynamic_yaru.git"
     source: git
-    version: "0.2.0"
+    version: "0.3.0"
   dynamite_runtime:
     dependency: transitive
     description:
@@ -738,6 +738,22 @@ packages:
       url: "https://pub.dev"
     source: hosted
     version: "12.1.1"
+  google_mlkit_commons:
+    dependency: transitive
+    description:
+      name: google_mlkit_commons
+      sha256: d9c044926baf379482ba43eae8f004dddeb4338ace90bb09e89b1e7cbe453c56
+      url: "https://pub.dev"
+    source: hosted
+    version: "1.0.0"
+  google_mlkit_digital_ink_recognition:
+    dependency: "direct main"
+    description:
+      name: google_mlkit_digital_ink_recognition
+      sha256: "092197d707099a55498aaf17fe36828fb967c9d6d2a26526b477db20a2c51f62"
+      url: "https://pub.dev"
+    source: hosted
+    version: "1.0.0"
   gsettings:
     dependency: transitive
     description:
@@ -2066,6 +2082,22 @@ packages:
       url: "https://pub.dev"
     source: hosted
     version: "15.4.0"
+  wakelock_plus:
+    dependency: "direct main"
+    description:
+      name: wakelock_plus
+      sha256: "39a1d99085cf3190d41305bca05f0c0d77522f355f7f99bb648ee231192d9d68"
+      url: "https://pub.dev"
+    source: hosted
+    version: "1.8.2"
+  wakelock_plus_platform_interface:
+    dependency: transitive
+    description:
+      name: wakelock_plus_platform_interface
+      sha256: "764c25504562abc8ac3406f5d175f126b276e6ba916c7c2675690b73368ca384"
+      url: "https://pub.dev"
+    source: hosted
+    version: "1.7.0"
   watcher:
     dependency: transitive
     description:

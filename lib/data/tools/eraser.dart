@@ -2,6 +2,7 @@ import 'dart:ui';
 
 import 'package:saber/components/canvas/_stroke.dart';
 
+import 'package:saber/data/prefs.dart';
 import 'package:saber/data/tools/_tool.dart';
 import 'package:sbn/tool_id.dart';
 
@@ -10,12 +11,15 @@ double sqrDistanceBetween(Offset p1, Offset p2) =>
     square(p1.dx - p2.dx) + square(p1.dy - p2.dy);
 
 class Eraser extends Tool {
-  final double size;
-  late final double sqrSize = square(size);
+  /// Aha! copy: adjustable (Settings remembers the last size).
+  double size;
+  double get sqrSize => square(size);
+
+  static const minSize = 3.0, maxSize = 80.0;
 
   List<Stroke> _erased = [];
 
-  new({this.size = 10});
+  new({double? size}) : size = size ?? stows.eraserSize.value;
 
   @override
   ToolId get toolId => .eraser;

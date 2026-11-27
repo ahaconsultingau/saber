@@ -8,6 +8,7 @@ import 'package:go_router/go_router.dart';
 import 'package:material_ui/material_ui.dart';
 import 'package:saber/components/navbar/responsive_navbar.dart';
 import 'package:saber/components/settings/app_info.dart';
+import 'package:saber/components/settings/new_page_design.dart';
 import 'package:saber/components/settings/nextcloud_profile.dart';
 import 'package:saber/components/settings/settings_button.dart';
 import 'package:saber/components/settings/settings_color.dart';
@@ -418,7 +419,72 @@ class _SettingsPageState extends State<SettingsPage> {
                     );
                   },
                 ),
+                SettingsSwitch(
+                  title: t.settings.prefLabels.penGuard,
+                  subtitle: t.settings.prefDescriptions.penGuard,
+                  icon: Icons.back_hand_outlined,
+                  pref: stows.penGuard,
+                ),
+                ValueListenableBuilder(
+                  valueListenable: stows.penGuard,
+                  builder: (context, penGuard, _) => Collapsible(
+                    collapsed: !penGuard,
+                    axis: CollapsibleAxis.vertical,
+                    child: SettingsSelection(
+                      title: t.settings.prefLabels.penGuardHold,
+                      subtitle: t.settings.prefDescriptions.penGuardHold,
+                      icon: Icons.timer_outlined,
+                      pref: stows.penGuardHoldMs,
+                      optionsWidth: 56,
+                      options: const [
+                        ToggleButtonsOption(500, Text('0.5')),
+                        ToggleButtonsOption(1000, Text('1')),
+                        ToggleButtonsOption(2000, Text('2')),
+                        ToggleButtonsOption(3000, Text('3')),
+                      ],
+                    ),
+                  ),
+                ),
+                SettingsSelection(
+                  title: t.settings.prefLabels.palmZone,
+                  subtitle: t.settings.prefDescriptions.palmZone,
+                  icon: Icons.front_hand_outlined,
+                  pref: stows.palmZone,
+                  optionsWidth: 56,
+                  options: [
+                    ToggleButtonsOption(0.0, Text(t.settings.palmZoneOff)),
+                    const ToggleButtonsOption(0.125, Text('⅛')),
+                    const ToggleButtonsOption(0.25, Text('¼')),
+                    const ToggleButtonsOption(1 / 3, Text('⅓')),
+                  ],
+                ),
+                SettingsSwitch(
+                  title: t.settings.prefLabels.palmSizeGuard,
+                  subtitle: t.settings.prefDescriptions.palmSizeGuard,
+                  icon: Icons.pan_tool_outlined,
+                  pref: stows.palmSizeGuard,
+                ),
+                SettingsSwitch(
+                  title: t.settings.prefLabels.keepScreenAwake,
+                  subtitle: t.settings.prefDescriptions.keepScreenAwake,
+                  icon: Icons.light_mode_outlined,
+                  pref: stows.keepScreenAwake,
+                ),
+                SettingsSwitch(
+                  title: t.settings.prefLabels.editorImmersive,
+                  subtitle: t.settings.prefDescriptions.editorImmersive,
+                  icon: Icons.fullscreen,
+                  pref: stows.editorImmersive,
+                ),
+                SettingsSwitch(
+                  title: t.settings.prefLabels.twoFingerScrollOnly,
+                  subtitle: t.settings.prefDescriptions.twoFingerScrollOnly,
+                  icon: Icons.swipe_vertical_outlined,
+                  pref: stows.twoFingerScrollOnly,
+                ),
 
+                SettingsSubtitle(subtitle: t.settings.prefCategories.newPages),
+                const NewPageDesignSettings(),
                 SettingsSubtitle(subtitle: t.settings.prefCategories.editor),
                 SettingsSelection(
                   title: t.settings.prefLabels.editorToolbarAlignment,

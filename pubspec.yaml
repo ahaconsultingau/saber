@@ -162,6 +162,8 @@ dependencies:
   dynamic_yaru: ^0.2.0
   image: 4.10.2  # 4.11.0 has a broken version constraint for `archive`
   pool: ^1.5.2
+  google_mlkit_digital_ink_recognition: ^1.0.0
+  wakelock_plus: ^1.8.2
 
 dev_dependencies:
   flutter_test:
@@ -202,10 +204,12 @@ dependency_overrides:
       ref: feat!/migrate-to-material_ui
 
   # material_ui support: https://github.com/adil192/dynamic_yaru/pull/1
+  # Aha! copy: that branch was merged into v0.3.0 and deleted (Nov 2026),
+  # so the old commit can't be fetched; pinned to the v0.3.0 commit.
   dynamic_yaru:
     git:
       url: https://github.com/adil192/dynamic_yaru.git
-      ref: ref!/migrate-to-standalone-material_ui
+      ref: c0dbcded48b80383a23965b14a1de8dbf605e5f2
 
   # material_ui support: no pull request yet
   flutter_quill:
@@ -227,6 +231,7 @@ flutter:
   assets:
     - assets/icon/icon.svg
     - assets/images/
+    - assets/images/paper/
     - assets/google_fonts/Atkinson_Hyperlegible_Next/OFL.txt
     - assets/google_fonts/Dekko/OFL.txt
     - assets/google_fonts/Fira_Mono/OFL.txt

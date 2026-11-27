@@ -46,6 +46,7 @@ class Translations with BaseTranslations<AppLocale, Translations> {
 	late final Translations$appInfo$en appInfo = Translations$appInfo$en.internal(_root);
 	late final Translations$update$en update = Translations$update$en.internal(_root);
 	late final Translations$editor$en editor = Translations$editor$en.internal(_root);
+	late final Translations$locks$en locks = Translations$locks$en.internal(_root);
 }
 
 // Path: common
@@ -73,16 +74,23 @@ class Translations$home$en {
 	final Translations _root; // ignore: unused_field
 
 	// Translations
+	late final Translations$home$newNote$en newNote = Translations$home$newNote$en.internal(_root);
+	late final Translations$home$newDrawing$en newDrawing = Translations$home$newDrawing$en.internal(_root);
 	late final Translations$home$tabs$en tabs = Translations$home$tabs$en.internal(_root);
 	late final Translations$home$titles$en titles = Translations$home$titles$en.internal(_root);
 	late final Translations$home$tooltips$en tooltips = Translations$home$tooltips$en.internal(_root);
 	late final Translations$home$create$en create = Translations$home$create$en.internal(_root);
 
+	/// en: 'Moved $n to $folder'
+	String movedNotes({required Object n, required Object folder}) => 'Moved ${n} to ${folder}';
+
+	late final Translations$home$noteshelf$en noteshelf = Translations$home$noteshelf$en.internal(_root);
+
 	/// en: 'Welcome to Saber'
 	String get welcome => 'Welcome to Saber';
 
-	/// en: 'The file you selected is not supported. Please select an sbn, sbn2, sba, or pdf file.'
-	String get invalidFormat => 'The file you selected is not supported. Please select an sbn, sbn2, sba, or pdf file.';
+	/// en: 'The file you selected is not supported. Please select an sbn, sbn2, sba, pdf or Noteshelf (nsa) file.'
+	String get invalidFormat => 'The file you selected is not supported. Please select an sbn, sbn2, sba, pdf or Noteshelf (nsa) file.';
 
 	/// en: 'No files found'
 	String get noFiles => 'No files found';
@@ -127,7 +135,12 @@ class Translations$settings$en {
 	final Translations _root; // ignore: unused_field
 
 	// Translations
+
+	/// en: 'Off'
+	String get palmZoneOff => 'Off';
+
 	late final Translations$settings$prefCategories$en prefCategories = Translations$settings$prefCategories$en.internal(_root);
+	late final Translations$settings$newPages$en newPages = Translations$settings$newPages$en.internal(_root);
 	late final Translations$settings$prefLabels$en prefLabels = Translations$settings$prefLabels$en.internal(_root);
 	late final Translations$settings$prefDescriptions$en prefDescriptions = Translations$settings$prefDescriptions$en.internal(_root);
 	late final Translations$settings$themeModes$en themeModes = Translations$settings$themeModes$en.internal(_root);
@@ -306,10 +319,18 @@ class Translations$editor$en {
 	// Translations
 	late final Translations$editor$toolbar$en toolbar = Translations$editor$toolbar$en.internal(_root);
 	late final Translations$editor$pens$en pens = Translations$editor$pens$en.internal(_root);
+	late final Translations$editor$fill$en fill = Translations$editor$fill$en.internal(_root);
 	late final Translations$editor$penOptions$en penOptions = Translations$editor$penOptions$en.internal(_root);
 	late final Translations$editor$colors$en colors = Translations$editor$colors$en.internal(_root);
 	late final Translations$editor$imageOptions$en imageOptions = Translations$editor$imageOptions$en.internal(_root);
 	late final Translations$editor$selectionBar$en selectionBar = Translations$editor$selectionBar$en.internal(_root);
+	late final Translations$editor$layers$en layers = Translations$editor$layers$en.internal(_root);
+	late final Translations$editor$draw$en draw = Translations$editor$draw$en.internal(_root);
+	late final Translations$editor$penGuard$en penGuard = Translations$editor$penGuard$en.internal(_root);
+	late final Translations$editor$bookmarks$en bookmarks = Translations$editor$bookmarks$en.internal(_root);
+	late final Translations$editor$saveState$en saveState = Translations$editor$saveState$en.internal(_root);
+	late final Translations$editor$insertTable$en insertTable = Translations$editor$insertTable$en.internal(_root);
+	late final Translations$editor$convertToText$en convertToText = Translations$editor$convertToText$en.internal(_root);
 	late final Translations$editor$menu$en menu = Translations$editor$menu$en.internal(_root);
 	late final Translations$editor$photoPdfError$en photoPdfError = Translations$editor$photoPdfError$en.internal(_root);
 	late final Translations$editor$readOnlyBanner$en readOnlyBanner = Translations$editor$readOnlyBanner$en.internal(_root);
@@ -325,6 +346,128 @@ class Translations$editor$en {
 
 	/// en: 'Saving your changes… You can safely exit the editor when it's done'
 	String get needsToSaveBeforeExiting => 'Saving your changes… You can safely exit the editor when it\'s done';
+}
+
+// Path: locks
+class Translations$locks$en {
+	Translations$locks$en.internal(this._root);
+
+	final Translations _root; // ignore: unused_field
+
+	// Translations
+
+	/// en: 'Locked. Enter the password to open it.'
+	String get locked => 'Locked. Enter the password to open it.';
+
+	/// en: 'Password'
+	String get password => 'Password';
+
+	/// en: 'Password again'
+	String get confirm => 'Password again';
+
+	/// en: 'Unlock'
+	String get unlock => 'Unlock';
+
+	/// en: 'That password isn't right'
+	String get wrongPassword => 'That password isn\'t right';
+
+	/// en: 'Lock with a password'
+	String get addTitle => 'Lock with a password';
+
+	/// en: 'Remove the lock'
+	String get removeTitle => 'Remove the lock';
+
+	/// en: 'Saber Aha will ask for this password before opening it, and hides its preview. The files aren't encrypted, so the Mac's Saber can still open them. A forgotten password can't be recovered in Saber Aha.'
+	String get addHelp => 'Saber Aha will ask for this password before opening it, and hides its preview. The files aren\'t encrypted, so the Mac\'s Saber can still open them. A forgotten password can\'t be recovered in Saber Aha.';
+
+	/// en: 'Use at least 4 characters'
+	String get tooShort => 'Use at least 4 characters';
+
+	/// en: 'The passwords don't match'
+	String get doesNotMatch => 'The passwords don\'t match';
+
+	/// en: 'Lock'
+	String get lock => 'Lock';
+
+	/// en: 'Remove lock'
+	String get remove => 'Remove lock';
+
+	/// en: 'Unlock the note before exporting it'
+	String get exportLocked => 'Unlock the note before exporting it';
+}
+
+// Path: home.newNote
+class Translations$home$newNote$en {
+	Translations$home$newNote$en.internal(this._root);
+
+	final Translations _root; // ignore: unused_field
+
+	// Translations
+
+	/// en: 'New note'
+	String get title => 'New note';
+
+	/// en: 'Name'
+	String get name => 'Name';
+
+	/// en: 'e.g. Bayside Council'
+	String get nameHint => 'e.g. Bayside Council';
+
+	/// en: 'Folder'
+	String get folder => 'Folder';
+
+	/// en: 'All notes (no folder)'
+	String get topFolder => 'All notes (no folder)';
+
+	/// en: 'Line style'
+	String get lineStyle => 'Line style';
+
+	/// en: 'Page colour and starting pen come from Settings › New pages'
+	String get lineStyleHelp => 'Page colour and starting pen come from Settings › New pages';
+
+	/// en: 'Create'
+	String get create => 'Create';
+
+	/// en: 'Skip'
+	String get skip => 'Skip';
+}
+
+// Path: home.newDrawing
+class Translations$home$newDrawing$en {
+	Translations$home$newDrawing$en.internal(this._root);
+
+	final Translations _root; // ignore: unused_field
+
+	// Translations
+
+	/// en: 'New drawing'
+	String get title => 'New drawing';
+
+	/// en: 'e.g. Logo ideas'
+	String get nameHint => 'e.g. Logo ideas';
+
+	/// en: 'Paper'
+	String get paper => 'Paper';
+
+	/// en: 'Shape'
+	String get shape => 'Shape';
+
+	/// en: 'Plain'
+	String get plain => 'Plain';
+
+	/// en: 'Portrait'
+	String get portrait => 'Portrait';
+
+	/// en: 'Landscape'
+	String get landscape => 'Landscape';
+
+	/// en: 'Square'
+	String get square => 'Square';
+
+	/// en: 'Drawing'
+	String get drawingBadge => 'Drawing';
+
+	late final Translations$home$newDrawing$papers$en papers = Translations$home$newDrawing$papers$en.internal(_root);
 }
 
 // Path: home.tabs
@@ -400,6 +543,42 @@ class Translations$home$create$en {
 
 	/// en: 'Import note'
 	String get importNote => 'Import note';
+
+	/// en: 'Quick note'
+	String get quickNote => 'Quick note';
+
+	/// en: 'Start a note straight away (name it later)'
+	String get quickNoteTooltip => 'Start a note straight away (name it later)';
+
+	/// en: 'Draw'
+	String get draw => 'Draw';
+
+	/// en: 'Start a new drawing'
+	String get drawTooltip => 'Start a new drawing';
+
+	/// en: 'New drawing'
+	String get newDrawing => 'New drawing';
+}
+
+// Path: home.noteshelf
+class Translations$home$noteshelf$en {
+	Translations$home$noteshelf$en.internal(this._root);
+
+	final Translations _root; // ignore: unused_field
+
+	// Translations
+
+	/// en: 'Importing from Noteshelf…'
+	String get importing => 'Importing from Noteshelf…';
+
+	/// en: 'Imported $n Noteshelf notebooks'
+	String imported({required Object n}) => 'Imported ${n} Noteshelf notebooks';
+
+	/// en: '$n items (typed text or pictures) couldn't be brought across'
+	String skipped({required Object n}) => '${n} items (typed text or pictures) couldn\'t be brought across';
+
+	/// en: 'Couldn't read $name as a Noteshelf notebook'
+	String failed({required Object name}) => 'Couldn\'t read ${name} as a Noteshelf notebook';
 }
 
 // Path: home.newFolder
@@ -635,11 +814,43 @@ class Translations$settings$prefCategories$en {
 	/// en: 'Editor'
 	String get editor => 'Editor';
 
+	/// en: 'New pages'
+	String get newPages => 'New pages';
+
 	/// en: 'Performance'
 	String get performance => 'Performance';
 
 	/// en: 'Advanced'
 	String get advanced => 'Advanced';
+}
+
+// Path: settings.newPages
+class Translations$settings$newPages$en {
+	Translations$settings$newPages$en.internal(this._root);
+
+	final Translations _root; // ignore: unused_field
+
+	// Translations
+
+	/// en: 'Line style'
+	String get lineStyle => 'Line style';
+
+	/// en: 'Page colour'
+	String get pageColour => 'Page colour';
+
+	/// en: 'Starting pen'
+	String get startingPen => 'Starting pen';
+
+	/// en: 'The pen I last used'
+	String get lastUsedPen => 'The pen I last used';
+
+	/// en: 'Preview'
+	String get preview => 'Preview';
+
+	/// en: 'Every new note starts like this. Existing notes keep their own design.'
+	String get previewNote => 'Every new note starts like this. Existing notes keep their own design.';
+
+	late final Translations$settings$newPages$colours$en colours = Translations$settings$newPages$colours$en.internal(_root);
 }
 
 // Path: settings.prefLabels
@@ -704,6 +915,27 @@ class Translations$settings$prefLabels$en {
 	/// en: 'Auto-disable finger drawing'
 	String get autoDisableFingerDrawingWhenStylusDetected => 'Auto-disable finger drawing';
 
+	/// en: 'Ignore touch while the pen is near'
+	String get penGuard => 'Ignore touch while the pen is near';
+
+	/// en: 'Keep ignoring touch after the pen lifts'
+	String get penGuardHold => 'Keep ignoring touch after the pen lifts';
+
+	/// en: 'Scroll with two fingers only'
+	String get twoFingerScrollOnly => 'Scroll with two fingers only';
+
+	/// en: 'Ignore touch along the bottom'
+	String get palmZone => 'Ignore touch along the bottom';
+
+	/// en: 'Ignore palm-sized touches'
+	String get palmSizeGuard => 'Ignore palm-sized touches';
+
+	/// en: 'Full screen while writing'
+	String get editorImmersive => 'Full screen while writing';
+
+	/// en: 'Keep the screen on in a note'
+	String get keepScreenAwake => 'Keep the screen on in a note';
+
 	/// en: 'Prompt you to rename new notes'
 	String get editorPromptRename => 'Prompt you to rename new notes';
 
@@ -762,6 +994,27 @@ class Translations$settings$prefDescriptions$en {
 
 	/// en: 'Turn off finger drawing when a stylus is detected'
 	String get autoDisableFingerDrawingWhenStylusDetected => 'Turn off finger drawing when a stylus is detected';
+
+	/// en: 'Stops your palm moving the page as you write'
+	String get penGuard => 'Stops your palm moving the page as you write';
+
+	/// en: 'In seconds, after the pen was last near the screen'
+	String get penGuardHold => 'In seconds, after the pen was last near the screen';
+
+	/// en: 'One finger or a sleeve won't move the page'
+	String get twoFingerScrollOnly => 'One finger or a sleeve won\'t move the page';
+
+	/// en: 'Rest your palm at the bottom of the screen; the pen still writes there'
+	String get palmZone => 'Rest your palm at the bottom of the screen; the pen still writes there';
+
+	/// en: 'A wide touch (your palm) does nothing anywhere on the page'
+	String get palmSizeGuard => 'A wide touch (your palm) does nothing anywhere on the page';
+
+	/// en: 'The tablet won't go to sleep while a note is open, even while you use the tablet's handwriting'
+	String get keepScreenAwake => 'The tablet won\'t go to sleep while a note is open, even while you use the tablet\'s handwriting';
+
+	/// en: 'Hides the system bars in a note, so a palm at the edge can't swipe Saber away; swipe twice to leave'
+	String get editorImmersive => 'Hides the system bars in a note, so a palm at the edge can\'t swipe Saber away; swipe twice to leave';
 
 	/// en: 'You can always rename notes later'
 	String get editorPromptRename => 'You can always rename notes later';
@@ -1059,6 +1312,9 @@ class Translations$editor$toolbar$en {
 	/// en: 'Toggle colors (Ctrl C)'
 	String get toggleColors => 'Toggle colors (Ctrl C)';
 
+	/// en: 'Drag to move the colours to any edge'
+	String get moveColours => 'Drag to move the colours to any edge';
+
 	/// en: 'Select'
 	String get select => 'Select';
 
@@ -1067,6 +1323,9 @@ class Translations$editor$toolbar$en {
 
 	/// en: 'Images'
 	String get photo => 'Images';
+
+	/// en: 'Insert table'
+	String get table => 'Insert table';
 
 	/// en: 'Text'
 	String get text => 'Text';
@@ -1113,8 +1372,29 @@ class Translations$editor$pens$en {
 	/// en: 'Shape pen'
 	String get shapePen => 'Shape pen';
 
+	/// en: 'Brush'
+	String get brush => 'Brush';
+
 	/// en: 'Laser pointer'
 	String get laserPointer => 'Laser pointer';
+
+	/// en: 'Fill (tap inside a shape)'
+	String get fill => 'Fill (tap inside a shape)';
+}
+
+// Path: editor.fill
+class Translations$editor$fill$en {
+	Translations$editor$fill$en.internal(this._root);
+
+	final Translations _root; // ignore: unused_field
+
+	// Translations
+
+	/// en: 'Tap inside the shape, not on its outline.'
+	String get onLine => 'Tap inside the shape, not on its outline.';
+
+	/// en: 'That shape isn't closed. Close the gap and try again.'
+	String get open => 'That shape isn\'t closed. Close the gap and try again.';
 }
 
 // Path: editor.penOptions
@@ -1127,6 +1407,18 @@ class Translations$editor$penOptions$en {
 
 	/// en: 'Size'
 	String get size => 'Size';
+
+	/// en: 'Feathering'
+	String get feathering => 'Feathering';
+
+	/// en: 'Opacity'
+	String get opacity => 'Opacity';
+
+	/// en: 'Steadiness'
+	String get steadiness => 'Steadiness';
+
+	/// en: 'Eraser size'
+	String get eraserSize => 'Eraser size';
 }
 
 // Path: editor.colors
@@ -1256,6 +1548,264 @@ class Translations$editor$selectionBar$en {
 
 	/// en: 'Duplicate'
 	String get duplicate => 'Duplicate';
+
+	/// en: 'Convert to text'
+	String get convertToText => 'Convert to text';
+}
+
+// Path: editor.layers
+class Translations$editor$layers$en {
+	Translations$editor$layers$en.internal(this._root);
+
+	final Translations _root; // ignore: unused_field
+
+	// Translations
+
+	/// en: 'Layers'
+	String get title => 'Layers';
+
+	/// en: 'New layer'
+	String get add => 'New layer';
+
+	/// en: 'Layer $n'
+	String newName({required Object n}) => 'Layer ${n}';
+
+	/// en: 'Show this layer'
+	String get show => 'Show this layer';
+
+	/// en: 'Hide this layer'
+	String get hide => 'Hide this layer';
+
+	/// en: 'Layer options'
+	String get menu => 'Layer options';
+
+	/// en: 'Rename'
+	String get rename => 'Rename';
+
+	/// en: 'Opacity'
+	String get opacity => 'Opacity';
+
+	/// en: 'Fill uses these lines'
+	String get fillLines => 'Fill uses these lines';
+
+	/// en: 'fill edges'
+	String get fillLinesShort => 'fill edges';
+
+	/// en: 'Merge down'
+	String get mergeDown => 'Merge down';
+
+	/// en: 'Delete layer'
+	String get delete => 'Delete layer';
+
+	/// en: 'Delete $name?'
+	String deleteTitle({required Object name}) => 'Delete ${name}?';
+
+	/// en: 'Everything drawn on this layer is removed. Undo brings it all back.'
+	String get deleteHelp => 'Everything drawn on this layer is removed. Undo brings it all back.';
+
+	/// en: 'Tap a layer to draw on it. The eraser and lasso only touch that layer.'
+	String get help => 'Tap a layer to draw on it. The eraser and lasso only touch that layer.';
+}
+
+// Path: editor.draw
+class Translations$editor$draw$en {
+	Translations$editor$draw$en.internal(this._root);
+
+	final Translations _root; // ignore: unused_field
+
+	// Translations
+
+	/// en: 'Draw'
+	String get row => 'Draw';
+
+	/// en: 'Layers'
+	String get layers => 'Layers';
+
+	/// en: 'Grid'
+	String get grid => 'Grid';
+
+	/// en: 'Flip view'
+	String get flipView => 'Flip view';
+
+	/// en: 'Pick colour'
+	String get pickColour => 'Pick colour';
+
+	/// en: 'Touch the page to take a colour from it'
+	String get pickColourHint => 'Touch the page to take a colour from it';
+
+	/// en: 'Tracing image'
+	String get tracingImage => 'Tracing image';
+
+	/// en: 'Hide tracing image'
+	String get hideTracing => 'Hide tracing image';
+
+	/// en: 'Show tracing image'
+	String get showTracing => 'Show tracing image';
+
+	/// en: 'Tracing image on this page'
+	String get addTracing => 'Tracing image on this page';
+
+	/// en: 'Remove from this page'
+	String get removeTracing => 'Remove from this page';
+
+	/// en: 'Flipped view'
+	String get flipped => 'Flipped view';
+
+	/// en: 'Make this a drawing'
+	String get makeDrawing => 'Make this a drawing';
+
+	/// en: 'Make this a note'
+	String get makeNote => 'Make this a note';
+}
+
+// Path: editor.penGuard
+class Translations$editor$penGuard$en {
+	Translations$editor$penGuard$en.internal(this._root);
+
+	final Translations _root; // ignore: unused_field
+
+	// Translations
+
+	/// en: 'Pen near · touch paused'
+	String get hint => 'Pen near · touch paused';
+
+	/// en: 'Back is paused while you write. Use the back arrow at the top to leave.'
+	String get backPaused => 'Back is paused while you write. Use the back arrow at the top to leave.';
+}
+
+// Path: editor.bookmarks
+class Translations$editor$bookmarks$en {
+	Translations$editor$bookmarks$en.internal(this._root);
+
+	final Translations _root; // ignore: unused_field
+
+	// Translations
+
+	/// en: 'Bookmarks'
+	String get title => 'Bookmarks';
+
+	/// en: 'New meeting'
+	String get newMeeting => 'New meeting';
+
+	/// en: 'Meeting'
+	String get newMeetingName => 'Meeting';
+
+	/// en: 'Client meeting'
+	String get defaultName => 'Client meeting';
+
+	/// en: 'Bookmark this page'
+	String get bookmarkThisPage => 'Bookmark this page';
+
+	/// en: 'This page is bookmarked'
+	String get thisPageIsBookmarked => 'This page is bookmarked';
+
+	/// en: 'No bookmarks yet. Bookmark a page, or start a new meeting page.'
+	String get empty => 'No bookmarks yet. Bookmark a page, or start a new meeting page.';
+
+	/// en: '$date · page $page'
+	String dateAndPage({required Object date, required Object page}) => '${date} · page ${page}';
+
+	/// en: 'Edit bookmark'
+	String get edit => 'Edit bookmark';
+
+	/// en: 'Name'
+	String get name => 'Name';
+
+	/// en: 'Date'
+	String get date => 'Date';
+
+	/// en: 'Also write the name and date at the top of the page'
+	String get writeHeading => 'Also write the name and date at the top of the page';
+
+	/// en: 'Remove'
+	String get remove => 'Remove';
+
+	/// en: 'Save'
+	String get save => 'Save';
+}
+
+// Path: editor.saveState
+class Translations$editor$saveState$en {
+	Translations$editor$saveState$en.internal(this._root);
+
+	final Translations _root; // ignore: unused_field
+
+	// Translations
+
+	/// en: 'Saved'
+	String get saved => 'Saved';
+
+	/// en: 'Saving…'
+	String get saving => 'Saving…';
+
+	/// en: 'Not saved yet'
+	String get notSaved => 'Not saved yet';
+
+	/// en: 'Tap to rename'
+	String get rename => 'Tap to rename';
+}
+
+// Path: editor.insertTable
+class Translations$editor$insertTable$en {
+	Translations$editor$insertTable$en.internal(this._root);
+
+	final Translations _root; // ignore: unused_field
+
+	// Translations
+
+	/// en: 'Insert table'
+	String get title => 'Insert table';
+
+	/// en: 'Rows'
+	String get rows => 'Rows';
+
+	/// en: 'Columns'
+	String get columns => 'Columns';
+
+	/// en: 'Insert'
+	String get insert => 'Insert';
+
+	/// en: 'The table is selected after it's inserted, so you can drag it into place.'
+	String get hint => 'The table is selected after it\'s inserted, so you can drag it into place.';
+}
+
+// Path: editor.convertToText
+class Translations$editor$convertToText$en {
+	Translations$editor$convertToText$en.internal(this._root);
+
+	final Translations _root; // ignore: unused_field
+
+	// Translations
+
+	/// en: 'Convert to text'
+	String get title => 'Convert to text';
+
+	/// en: 'Downloading the handwriting pack. This happens once and needs an internet connection.'
+	String get downloading => 'Downloading the handwriting pack. This happens once and needs an internet connection.';
+
+	/// en: 'Reading your handwriting…'
+	String get reading => 'Reading your handwriting…';
+
+	/// en: 'No handwriting was found in the selection.'
+	String get nothingFound => 'No handwriting was found in the selection.';
+
+	/// en: 'The handwriting couldn't be read. Check your internet connection if this is the first time, then try again.'
+	String get failed => 'The handwriting couldn\'t be read. Check your internet connection if this is the first time, then try again.';
+
+	/// en: 'Remove the handwriting'
+	String get removeHandwriting => 'Remove the handwriting';
+
+	/// en: 'The text is added to the page's typed text, which starts at the top of the page.'
+	String get textLayerNote => 'The text is added to the page\'s typed text, which starts at the top of the page.';
+
+	/// en: 'Copy'
+	String get copy => 'Copy';
+
+	/// en: 'Copied'
+	String get copied => 'Copied';
+
+	/// en: 'Add to page'
+	String get addToPage => 'Add to page';
 }
 
 // Path: editor.menu
@@ -1292,6 +1842,12 @@ class Translations$editor$menu$en {
 
 	/// en: 'Background line thickness'
 	String get lineThicknessDescription => 'Background line thickness';
+
+	/// en: 'Make this my default for new notes'
+	String get makeDefault => 'Make this my default for new notes';
+
+	/// en: 'New notes will start with this page design'
+	String get madeDefault => 'New notes will start with this page design';
 
 	/// en: 'Background image fit'
 	String get backgroundImageFit => 'Background image fit';
@@ -1402,6 +1958,30 @@ class Translations$editor$hud$en {
 	String get lockAxisAlignedPan => 'Lock panning to horizontal or vertical';
 }
 
+// Path: home.newDrawing.papers
+class Translations$home$newDrawing$papers$en {
+	Translations$home$newDrawing$papers$en.internal(this._root);
+
+	final Translations _root; // ignore: unused_field
+
+	// Translations
+
+	/// en: 'Sketch'
+	String get sketch => 'Sketch';
+
+	/// en: 'Watercolour'
+	String get watercolour => 'Watercolour';
+
+	/// en: 'Canvas'
+	String get canvas => 'Canvas';
+
+	/// en: 'Kraft'
+	String get kraft => 'Kraft';
+
+	/// en: 'Toned grey'
+	String get tonedGrey => 'Toned grey';
+}
+
 // Path: sentry.consent.description
 class Translations$sentry$consent$description$en {
 	Translations$sentry$consent$description$en.internal(this._root);
@@ -1446,6 +2026,33 @@ class Translations$sentry$consent$answers$en {
 
 	/// en: 'Ask me later'
 	String get later => 'Ask me later';
+}
+
+// Path: settings.newPages.colours
+class Translations$settings$newPages$colours$en {
+	Translations$settings$newPages$colours$en.internal(this._root);
+
+	final Translations _root; // ignore: unused_field
+
+	// Translations
+
+	/// en: 'White'
+	String get white => 'White';
+
+	/// en: 'Cream'
+	String get cream => 'Cream';
+
+	/// en: 'Soft grey'
+	String get softGrey => 'Soft grey';
+
+	/// en: 'Pale blue'
+	String get paleBlue => 'Pale blue';
+
+	/// en: 'Any colour…'
+	String get anyColour => 'Any colour…';
+
+	/// en: 'Your colour'
+	String get custom => 'Your colour';
 }
 
 // Path: settings.prefDescriptions.hideFingerDrawing
@@ -1602,4 +2209,7 @@ class Translations$editor$menu$bgPatterns$en {
 
 	/// en: 'Cornell'
 	String get cornell => 'Cornell';
+
+	/// en: 'Isometric'
+	String get isometric => 'Isometric';
 }

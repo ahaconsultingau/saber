@@ -1,23 +1,32 @@
 import 'package:flutter_hooks/flutter_hooks.dart';
 import 'package:go_router/go_router.dart';
 import 'package:material_ui/material_ui.dart';
+import 'package:saber/data/aha/note_locks.dart';
 import 'package:saber/data/file_manager/file_manager.dart';
 import 'package:saber/data/routes.dart';
 
-class const FileTree({super.key}) extends StatelessWidget {
+class const FileTree({
+  super.key,
+
+  /// Called when a note is opened from the tree (e.g. to close the side bar).
+  final VoidCallback? onFileOpened,
+}) extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
-    return const SingleChildScrollView(
+    return SingleChildScrollView(
       scrollDirection: Axis.vertical,
       child: Padding(
-        padding: .directional(start: 12, top: 12, bottom: 12),
-        child: _FileTreeDir(path: null),
+        padding: const .directional(start: 12, top: 12, bottom: 12),
+        child: _FileTreeDir(path: null, onFileOpened: onFileOpened),
       ),
     );
   }
 }
 
-class const _FileTreeDir({required final String? path}) extends HookWidget {
+class const _FileTreeDir({
+  required final String? path,
+  final VoidCallback? onFileOpened,
+}) extends HookWidget {
   @override
   Widget build(BuildContext context) {
     final areChildrenVisible = useState(path == null);
@@ -33,6 +42,9 @@ class const _FileTreeDir({required final String? path}) extends HookWidget {
     final children = useFuture(refreshFuture, preserveState: true).data;
 
     final colorScheme = ColorScheme.of(context);
+    // Aha! copy: a locked folder keeps its contents hidden here too.
+    useListenable(NoteLocks.changes);
+    final locked = path != null && NoteLocks.isFolderLocked(path!);
     return Column(
       crossAxisAlignment: .start,
       children: [
@@ -43,7 +55,11 @@ class const _FileTreeDir({required final String? path}) extends HookWidget {
             child: Row(
               children: [
                 Icon(
-                  areChildrenVisible.value ? Icons.folder_open : Icons.folder,
+                  locked
+                      ? Icons.lock_outline
+                      : areChildrenVisible.value
+                      ? Icons.folder_open
+                      : Icons.folder,
                   color: colorScheme.primary,
                   size: 25,
                 ),
@@ -59,7 +75,7 @@ class const _FileTreeDir({required final String? path}) extends HookWidget {
               ],
             ),
           ),
-        if (areChildrenVisible.value && children != null)
+        if (areChildrenVisible.value && children != null && !locked)
           Stack(
             children: [
               if (path != null)
@@ -78,9 +94,13 @@ class const _FileTreeDir({required final String? path}) extends HookWidget {
                     for (var i = 0; i < children.directories.length; i++)
                       _FileTreeDir(
                         path: "${path ?? ""}/${children.directories[i]}",
+                        onFileOpened: onFileOpened,
                       ),
                     for (var i = 0; i < children.files.length; i++)
-                      _FileTreeFile(path: "${path ?? ""}/${children.files[i]}"),
+                      _FileTreeFile(
+                        path: "${path ?? ""}/${children.files[i]}",
+                        onFileOpened: onFileOpened,
+                      ),
                   ],
                 ),
               ),
@@ -91,7 +111,10 @@ class const _FileTreeDir({required final String? path}) extends HookWidget {
   }
 }
 
-class const _FileTreeFile({required final String path}) extends HookWidget {
+class const _FileTreeFile({
+  required final String path,
+  final VoidCallback? onFileOpened,
+}) extends HookWidget {
   @override
   Widget build(BuildContext context) {
     return Column(
@@ -100,6 +123,7 @@ class const _FileTreeFile({required final String path}) extends HookWidget {
         InkWell(
           borderRadius: const .all(.circular(8)),
           onTap: () {
+            onFileOpened?.call();
             context.push(RoutePaths.editFilePath(path));
           },
           child: Row(
