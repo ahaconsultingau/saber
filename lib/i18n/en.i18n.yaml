@@ -177,6 +177,7 @@ settings:
     palmZone: Ignore touch along the bottom
     palmSizeGuard: Ignore palm-sized touches
     editorImmersive: Full screen while writing
+    keepScreenAwake: Keep the screen on in a note
     editorPromptRename: Prompt you to rename new notes
     recentColorsDontSavePresets: Don't save preset colors in recent colors
     recentColorsLength: How many recent colors to store
@@ -203,6 +204,7 @@ settings:
     twoFingerScrollOnly: One finger or a sleeve won't move the page
     palmZone: Rest your palm at the bottom of the screen; the pen still writes there
     palmSizeGuard: A wide touch (your palm) does nothing anywhere on the page
+    keepScreenAwake: The tablet won't go to sleep while a note is open, even while you use the tablet's handwriting
     editorImmersive: Hides the system bars in a note, so a palm at the edge can't swipe Saber away; swipe twice to leave
     editorPromptRename: You can always rename notes later
     printPageIndicators: Show page indicators in exports

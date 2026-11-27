@@ -465,6 +465,12 @@ class _SettingsPageState extends State<SettingsPage> {
                   pref: stows.palmSizeGuard,
                 ),
                 SettingsSwitch(
+                  title: t.settings.prefLabels.keepScreenAwake,
+                  subtitle: t.settings.prefDescriptions.keepScreenAwake,
+                  icon: Icons.light_mode_outlined,
+                  pref: stows.keepScreenAwake,
+                ),
+                SettingsSwitch(
                   title: t.settings.prefLabels.editorImmersive,
                   subtitle: t.settings.prefDescriptions.editorImmersive,
                   icon: Icons.fullscreen,

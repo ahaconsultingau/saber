@@ -71,6 +71,7 @@ import 'package:sbn/canvas_background_pattern.dart';
 import 'package:sbn/change.dart';
 import 'package:sbn/tool_id.dart';
 import 'package:super_clipboard/super_clipboard.dart';
+import 'package:wakelock_plus/wakelock_plus.dart';
 
 class const _PhotoInfo(final Uint8List bytes, final String extension);
 
@@ -217,6 +218,7 @@ class EditorState extends State<Editor> {
       onShow: _applyImmersive,
     );
     _applyImmersive();
+    _setScreenAwake(stows.keepScreenAwake.value);
 
     _initAsync();
     _assignKeybindings();
@@ -2389,6 +2391,16 @@ class EditorState extends State<Editor> {
 
   static bool get _isMobile => Platform.isAndroid || Platform.isIOS;
 
+  /// Aha! copy: keeps the screen on while the note is open.
+  void _setScreenAwake(bool awake) {
+    if (!_isMobile) return;
+    WakelockPlus.toggle(enable: awake).catchError((Object e) {
+      log.warning(
+        'Could not ${awake ? 'keep' : 'stop keeping'} the screen on: $e',
+      );
+    });
+  }
+
   void _applyImmersive() {
     if (!_isMobile || !stows.editorImmersive.value) return;
     SystemChrome.setEnabledSystemUIMode(SystemUiMode.immersiveSticky);
@@ -3096,6 +3108,7 @@ class EditorState extends State<Editor> {
   @override
   void dispose() {
     _lifecycle?.dispose();
+    if (stows.keepScreenAwake.value) _setScreenAwake(false);
     if (_isMobile &&
         stows.editorImmersive.value &&
         !DynamicMaterialApp.isFullscreen) {

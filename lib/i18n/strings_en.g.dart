@@ -933,6 +933,9 @@ class Translations$settings$prefLabels$en {
 	/// en: 'Full screen while writing'
 	String get editorImmersive => 'Full screen while writing';
 
+	/// en: 'Keep the screen on in a note'
+	String get keepScreenAwake => 'Keep the screen on in a note';
+
 	/// en: 'Prompt you to rename new notes'
 	String get editorPromptRename => 'Prompt you to rename new notes';
 
@@ -1006,6 +1009,9 @@ class Translations$settings$prefDescriptions$en {
 
 	/// en: 'A wide touch (your palm) does nothing anywhere on the page'
 	String get palmSizeGuard => 'A wide touch (your palm) does nothing anywhere on the page';
+
+	/// en: 'The tablet won't go to sleep while a note is open, even while you use the tablet's handwriting'
+	String get keepScreenAwake => 'The tablet won\'t go to sleep while a note is open, even while you use the tablet\'s handwriting';
 
 	/// en: 'Hides the system bars in a note, so a palm at the edge can't swipe Saber away; swipe twice to leave'
 	String get editorImmersive => 'Hides the system bars in a note, so a palm at the edge can\'t swipe Saber away; swipe twice to leave';

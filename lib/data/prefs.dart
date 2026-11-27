@@ -239,6 +239,14 @@ class Stows {
     volatile: !_isOnMainIsolate,
   );
 
+  /// Aha! copy: keep the screen on while a note is open (writing with the
+  /// pen doesn't always count as touching, so the tablet went to sleep).
+  final keepScreenAwake = PlainStow(
+    'keepScreenAwake',
+    true,
+    volatile: !_isOnMainIsolate,
+  );
+
   /// Aha! copy: one finger (or a sleeve) doesn't move the page; scroll and
   /// zoom with two fingers.
   final twoFingerScrollOnly = PlainStow(
